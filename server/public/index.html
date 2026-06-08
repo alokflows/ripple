@@ -1,0 +1,616 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, maximum-scale=1" />
+  <meta name="theme-color" content="#0b0b12" />
+  <title>Yap</title>
+  <style>
+    :root {
+      --bg: oklch(15% 0.015 280);
+      --bg-elev: oklch(20% 0.02 280);
+      --surface: oklch(25% 0.03 282);
+      --hairline: oklch(100% 0 0 / 0.08);
+      --ink: oklch(97% 0.005 280);
+      --ink-soft: oklch(74% 0.015 280);
+      --ink-faint: oklch(56% 0.02 280);
+      --accent: oklch(72% 0.17 285);
+      --accent-strong: oklch(66% 0.21 288);
+      --good: oklch(80% 0.15 155);
+      --warn: oklch(82% 0.14 75);
+      --bad: oklch(70% 0.19 25);
+      --radius: 14px;
+      --radius-lg: 22px;
+      --ease: cubic-bezier(0.16, 1, 0.3, 1);
+      --dur: 260ms;
+    }
+
+    * { box-sizing: border-box; }
+    html, body {
+      margin: 0; height: 100%;
+      background: var(--bg); color: var(--ink);
+      font-family: -apple-system, BlinkMacSystemFont, ui-sans-serif, "Segoe UI", Roboto, sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      overscroll-behavior: none;
+    }
+    body {
+      display: flex; flex-direction: column;
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) 0 env(safe-area-inset-bottom);
+    }
+
+    header {
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px; padding: 18px 20px 6px;
+    }
+    .brand { display: flex; align-items: center; gap: 10px; }
+    .brand .mark {
+      width: 28px; height: 28px; border-radius: 8px;
+      background: linear-gradient(145deg, var(--accent), var(--accent-strong));
+      display: grid; place-items: center;
+      box-shadow: 0 4px 14px oklch(66% 0.21 288 / 0.4);
+    }
+    .brand .mark svg { width: 16px; height: 16px; }
+    .brand h1 { font-size: 1.15rem; letter-spacing: -0.02em; margin: 0; font-weight: 680; }
+
+    .status-pill {
+      display: inline-flex; align-items: center; gap: 7px;
+      padding: 6px 12px 6px 10px; border-radius: 999px;
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      font-size: 0.72rem; color: var(--ink-soft);
+    }
+    .dot {
+      width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint);
+      transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
+    }
+    .status-pill[data-state="paired"] .dot { background: var(--good); box-shadow: 0 0 0 4px oklch(80% 0.15 155 / 0.16); }
+    .status-pill[data-state="waiting"] .dot { background: var(--warn); box-shadow: 0 0 0 4px oklch(82% 0.14 75 / 0.14); }
+    .status-pill[data-state="offline"] .dot { background: var(--bad); }
+
+    main {
+      flex: 1; display: flex; flex-direction: column; gap: 14px;
+      padding: 10px 16px 16px; width: 100%; max-width: 560px; margin: 0 auto; min-height: 0;
+    }
+
+    /* Segmented control --------------------------------------------------- */
+    .segmented {
+      display: flex; gap: 4px; padding: 4px;
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      border-radius: var(--radius);
+    }
+    .segmented button {
+      flex: 1; padding: 9px 8px; border: none; border-radius: 10px;
+      background: transparent; color: var(--ink-faint);
+      font-size: 0.85rem; font-weight: 600; font-family: inherit;
+      transition: background var(--dur) var(--ease), color var(--dur) var(--ease);
+    }
+    .segmented button[aria-selected="true"] {
+      background: var(--surface); color: var(--ink);
+      box-shadow: 0 1px 6px oklch(0% 0 0 / 0.3);
+    }
+
+    /* Pair card ----------------------------------------------------------- */
+    .pair {
+      display: flex; align-items: center; gap: 12px; padding: 12px 14px;
+      background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
+    }
+    .pair label { font-size: 0.68rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.08em; }
+    .pair input {
+      flex: 1; min-width: 0; background: transparent; border: none; color: var(--ink);
+      font-size: 1.35rem; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase;
+      font-family: inherit;
+    }
+    .pair input:focus { outline: none; }
+    .pair input::placeholder { color: var(--ink-faint); letter-spacing: 0.1em; }
+    .pair button {
+      flex-shrink: 0; padding: 9px 14px; border-radius: 11px;
+      border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-soft);
+      font-size: 0.8rem; font-weight: 600; font-family: inherit;
+      transition: transform var(--dur) var(--ease), color var(--dur) var(--ease);
+    }
+    .pair button:active { transform: scale(0.95); }
+    .pair button.connected { color: var(--good); border-color: oklch(80% 0.15 155 / 0.4); }
+
+    .panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
+    .hidden { display: none !important; }
+
+    /* Compose (Send) ------------------------------------------------------ */
+    .compose {
+      flex: 1; display: flex; flex-direction: column;
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg); overflow: hidden;
+      box-shadow: 0 20px 50px oklch(0% 0 0 / 0.3);
+    }
+    textarea {
+      flex: 1; resize: none; width: 100%; min-height: 130px; padding: 18px;
+      background: transparent; border: none; color: var(--ink);
+      font-size: 1.1rem; line-height: 1.5; font-family: inherit;
+    }
+    textarea:focus { outline: none; }
+    textarea::placeholder { color: var(--ink-faint); }
+    .interim {
+      padding: 0 18px 6px; color: var(--accent); font-size: 1rem; font-style: italic;
+      opacity: 0; transition: opacity 160ms var(--ease);
+    }
+    .interim.show { opacity: 0.85; }
+    .toolbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 12px 14px 14px; border-top: 1px solid var(--hairline);
+    }
+    .mic {
+      position: relative; width: 58px; height: 58px; flex-shrink: 0;
+      border-radius: 50%; border: none; color: white;
+      background: linear-gradient(150deg, var(--accent), var(--accent-strong));
+      display: grid; place-items: center;
+      box-shadow: 0 8px 20px oklch(66% 0.21 288 / 0.4);
+      transition: transform 120ms var(--ease); touch-action: none; user-select: none;
+    }
+    .mic svg { width: 24px; height: 24px; }
+    .mic:active { transform: scale(0.94); }
+    .mic.listening { animation: pulse 1.3s var(--ease) infinite; }
+    .mic.listening::after {
+      content: ""; position: absolute; inset: -6px; border-radius: 50%;
+      border: 2px solid oklch(72% 0.17 285 / 0.5); animation: ring 1.3s var(--ease) infinite;
+    }
+    .mic[disabled] { filter: grayscale(0.7) brightness(0.7); box-shadow: none; }
+    @keyframes pulse { 50% { box-shadow: 0 8px 30px oklch(66% 0.21 288 / 0.75); } }
+    @keyframes ring { 0% { transform: scale(0.85); opacity: 0.8; } 100% { transform: scale(1.35); opacity: 0; } }
+    .mic-hint { flex: 1; font-size: 0.78rem; color: var(--ink-faint); line-height: 1.35; }
+    .mic-hint b { color: var(--ink-soft); font-weight: 600; }
+    .send {
+      flex-shrink: 0; padding: 0 22px; height: 48px; border-radius: 13px; border: none;
+      background: var(--ink); color: var(--bg); font-size: 0.95rem; font-weight: 700; font-family: inherit;
+      transition: transform 120ms var(--ease), opacity var(--dur) var(--ease);
+    }
+    .send:active { transform: scale(0.96); }
+    .send:disabled { opacity: 0.4; }
+
+    /* Receive ------------------------------------------------------------- */
+    .latest {
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      border-radius: var(--radius-lg); padding: 18px;
+      box-shadow: 0 20px 50px oklch(0% 0 0 / 0.3); margin-bottom: 14px;
+    }
+    .latest-label { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--ink-faint); }
+    .latest-text { margin: 8px 0 14px; font-size: 1.3rem; line-height: 1.45; word-break: break-word; min-height: 1.4em; }
+    .latest-text.empty { color: var(--ink-faint); font-size: 1rem; font-style: italic; }
+    .row { display: flex; align-items: center; gap: 12px; }
+    .copy-btn {
+      padding: 10px 18px; border: none; border-radius: 11px;
+      background: var(--ink); color: var(--bg); font-weight: 700; font-size: 0.88rem; font-family: inherit;
+      transition: transform 120ms var(--ease), background var(--dur) var(--ease);
+    }
+    .copy-btn:active { transform: scale(0.96); }
+    .copy-btn.copied { background: var(--good); }
+    .autocopy { display: flex; align-items: center; gap: 7px; font-size: 0.8rem; color: var(--ink-soft); margin-left: auto; }
+    .autocopy input { width: 17px; height: 17px; accent-color: var(--accent); }
+
+    /* History / session feed (shared) ------------------------------------- */
+    .session-bar {
+      display: flex; align-items: center; gap: 10px; padding: 2px 2px 10px;
+    }
+    .session-bar h2 { font-size: 0.95rem; font-weight: 650; margin: 0; letter-spacing: -0.01em; }
+    .session-bar .count { color: var(--ink-faint); font-weight: 500; font-size: 0.85rem; }
+    .session-bar .spacer { flex: 1; }
+    .ghost-btn {
+      padding: 7px 13px; border-radius: 999px; border: 1px solid var(--hairline);
+      background: transparent; color: var(--ink-soft); font-size: 0.78rem; font-weight: 600; font-family: inherit;
+      transition: transform 120ms var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease);
+    }
+    .ghost-btn:active { transform: scale(0.95); }
+    .ghost-btn.danger { color: var(--bad); border-color: oklch(70% 0.19 25 / 0.35); }
+    .ghost-btn.copied { color: var(--good); border-color: oklch(80% 0.15 155 / 0.4); }
+
+    .feed {
+      list-style: none; margin: 0; padding: 0; flex: 1; min-height: 0; overflow-y: auto;
+      display: flex; flex-direction: column; gap: 8px; -webkit-overflow-scrolling: touch;
+    }
+    .feed-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 40px 20px; font-style: italic; }
+    .feed li {
+      background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
+      padding: 12px 14px; display: flex; gap: 12px; align-items: flex-start;
+      animation: slideIn 220ms var(--ease);
+    }
+    .feed li .body { flex: 1; min-width: 0; }
+    .feed li .ft { color: var(--ink); font-size: 0.95rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
+    .feed li .meta {
+      display: flex; align-items: center; gap: 8px; margin-top: 5px;
+      font-size: 0.68rem; color: var(--ink-faint);
+    }
+    .feed li .tag { display: inline-flex; align-items: center; gap: 4px; }
+    .feed li .tag.out { color: var(--accent); }
+    .feed li .tag.in { color: var(--good); }
+    .feed li .tag.failed { color: var(--bad); }
+    .feed li button.item-copy {
+      flex-shrink: 0; padding: 6px 11px; border: 1px solid var(--hairline); border-radius: 9px;
+      background: var(--surface); color: var(--ink-soft); font-size: 0.72rem; font-weight: 600; font-family: inherit;
+      transition: transform 120ms var(--ease), color var(--dur) var(--ease);
+    }
+    .feed li button.item-copy:active { transform: scale(0.94); }
+    .feed li button.item-copy.copied { color: var(--good); border-color: oklch(80% 0.15 155 / 0.4); }
+    @keyframes slideIn { from { opacity: 0; transform: translateY(-6px); } }
+
+    .meta-line { text-align: center; font-size: 0.72rem; color: var(--ink-faint); padding: 4px 18px 8px; }
+
+    .toast {
+      position: fixed; left: 50%; bottom: calc(env(safe-area-inset-bottom) + 18px);
+      transform: translate(-50%, 20px);
+      background: var(--surface); color: var(--ink); padding: 11px 18px; border-radius: 999px;
+      font-size: 0.85rem; font-weight: 600; border: 1px solid var(--hairline);
+      box-shadow: 0 12px 30px oklch(0% 0 0 / 0.4);
+      opacity: 0; pointer-events: none; z-index: 50;
+      transition: opacity var(--dur) var(--ease), transform var(--dur) var(--ease);
+    }
+    .toast.show { opacity: 1; transform: translate(-50%, 0); }
+    .toast.good { color: var(--good); }
+    .toast.bad { color: var(--bad); }
+
+    @media (prefers-reduced-motion: reduce) { *, *::after { animation: none !important; transition: none !important; } }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="brand">
+      <span class="mark" aria-hidden="true">
+        <svg viewBox="0 0 24 24" fill="none" stroke="white" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M12 3v9" /><path d="M8 7l4-4 4 4" /><rect x="4" y="14" width="16" height="7" rx="2" />
+        </svg>
+      </span>
+      <h1>Yap</h1>
+    </div>
+    <span class="status-pill" id="status" data-state="offline" role="status" aria-live="polite">
+      <span class="dot" aria-hidden="true"></span>
+      <span id="statusText">Connecting…</span>
+    </span>
+  </header>
+
+  <main>
+    <div class="segmented" role="tablist" aria-label="Mode">
+      <button id="tabSend" role="tab" aria-selected="true">Send</button>
+      <button id="tabReceive" role="tab" aria-selected="false">Receive</button>
+      <button id="tabHistory" role="tab" aria-selected="false">History</button>
+    </div>
+
+    <div class="pair">
+      <div style="flex:1; min-width:0;">
+        <label for="room">Pairing code</label><br />
+        <input id="room" inputmode="latin" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" maxlength="12" placeholder="ABCD" aria-label="Pairing code" />
+      </div>
+      <button id="connectBtn" type="button">Connect</button>
+    </div>
+
+    <!-- SEND -->
+    <section class="panel" id="panelSend" aria-label="Send">
+      <div class="compose">
+        <textarea id="text" placeholder="Type here, or use your keyboard's mic…"
+                  aria-label="Text to send"></textarea>
+        <div class="interim" id="interim" aria-hidden="true"></div>
+        <div class="toolbar">
+          <button class="mic" id="mic" type="button" aria-label="Hold to talk">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="9" y="2" width="6" height="12" rx="3" />
+              <path d="M5 10a7 7 0 0 0 14 0" /><path d="M12 17v4" /><path d="M8 21h8" />
+            </svg>
+          </button>
+          <p class="mic-hint">Tap the box, hit the <b>🎤 on your keyboard</b> to dictate, then Send.</p>
+          <button class="send" id="send" type="button">Send</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- RECEIVE -->
+    <section class="panel hidden" id="panelReceive" aria-label="Receive">
+      <div class="latest">
+        <span class="latest-label">Latest message</span>
+        <p class="latest-text empty" id="latestText">Waiting for messages…</p>
+        <div class="row">
+          <button class="copy-btn" id="copyLatest" type="button">Copy</button>
+          <label class="autocopy"><input type="checkbox" id="autoCopy" /> Auto-copy</label>
+        </div>
+      </div>
+    </section>
+
+    <!-- HISTORY (and shared session feed) -->
+    <section class="panel hidden" id="panelHistory" aria-label="Session history">
+      <div class="session-bar">
+        <h2>Session <span class="count" id="histCount">0</span></h2>
+        <span class="spacer"></span>
+        <button class="ghost-btn" id="copyAll" type="button">Copy all</button>
+        <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
+      </div>
+      <ul class="feed" id="feed" aria-live="polite"></ul>
+    </section>
+  </main>
+
+  <div class="toast" id="toast" role="status" aria-live="assertive"></div>
+
+  <script>
+    const $ = (id) => document.getElementById(id);
+    const els = {
+      room: $('room'), connect: $('connectBtn'), status: $('status'), statusText: $('statusText'),
+      text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), toast: $('toast'),
+      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
+      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
+      latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
+      feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
+    };
+
+    const KEYS = { room: 'yap.room', mode: 'yap.mode', history: 'yap.history', autocopy: 'yap.autocopy' };
+    const MAX_HISTORY = 300;
+
+    let ws = null, reconnectTimer = null, manualClose = false;
+    let role = localStorage.getItem(KEYS.mode) === 'receive' ? 'desktop' : 'phone';
+    let peers = 0; // desktops when sending, phones when receiving
+
+    // ---- session history (persisted; survives disconnect / refresh) -------
+    let history = loadHistory();
+    function loadHistory() { try { return JSON.parse(localStorage.getItem(KEYS.history)) || []; } catch { return []; } }
+    function saveHistory() { localStorage.setItem(KEYS.history, JSON.stringify(history.slice(-MAX_HISTORY))); }
+    let idSeq = Date.now();
+    function addEntry(entry) {
+      const e = { id: ++idSeq, t: Date.now(), ...entry };
+      history.push(e);
+      saveHistory();
+      renderHistory();
+      return e;
+    }
+    function fmtTime(t) {
+      try { return new Date(t).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }); }
+      catch { return ''; }
+    }
+
+    function renderHistory() {
+      els.histCount.textContent = history.length;
+      els.feed.innerHTML = '';
+      if (!history.length) {
+        const empty = document.createElement('div');
+        empty.className = 'feed-empty';
+        empty.textContent = 'No messages yet. Everything you send or receive shows up here.';
+        els.feed.appendChild(empty);
+        return;
+      }
+      for (let i = history.length - 1; i >= 0; i--) {
+        const e = history[i];
+        const li = document.createElement('li');
+
+        const body = document.createElement('div');
+        body.className = 'body';
+        const ft = document.createElement('div');
+        ft.className = 'ft';
+        ft.textContent = e.text;
+        const meta = document.createElement('div');
+        meta.className = 'meta';
+        const tag = document.createElement('span');
+        const failed = e.dir === 'out' && e.delivered === false;
+        tag.className = 'tag ' + (failed ? 'failed' : e.dir);
+        tag.textContent = e.dir === 'in' ? 'received' : (failed ? 'not delivered' : 'sent');
+        const time = document.createElement('span');
+        time.textContent = fmtTime(e.t);
+        meta.appendChild(tag);
+        meta.appendChild(time);
+        body.appendChild(ft);
+        body.appendChild(meta);
+
+        const copyBtn = document.createElement('button');
+        copyBtn.className = 'item-copy';
+        copyBtn.textContent = 'Copy';
+        copyBtn.addEventListener('click', () => copyText(e.text).then((ok) => {
+          if (ok) { copyBtn.textContent = 'Copied'; copyBtn.classList.add('copied');
+            setTimeout(() => { copyBtn.textContent = 'Copy'; copyBtn.classList.remove('copied'); }, 1200); }
+        }));
+
+        li.appendChild(body);
+        li.appendChild(copyBtn);
+        els.feed.appendChild(li);
+      }
+    }
+
+    // ---- clipboard (works on https + localhost; fallback otherwise) -------
+    async function copyText(text) {
+      try {
+        if (navigator.clipboard && window.isSecureContext) {
+          await navigator.clipboard.writeText(text);
+          return true;
+        }
+      } catch { /* fall through */ }
+      try {
+        const ta = document.createElement('textarea');
+        ta.value = text; ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta); ta.focus(); ta.select();
+        const ok = document.execCommand('copy');
+        document.body.removeChild(ta);
+        return ok;
+      } catch { return false; }
+    }
+
+    // ---- ui helpers -------------------------------------------------------
+    function setStatus(state, text) { els.status.dataset.state = state; els.statusText.textContent = text; }
+    let toastTimer = null;
+    function toast(message, kind = '') {
+      els.toast.textContent = message;
+      els.toast.className = 'toast show ' + kind;
+      clearTimeout(toastTimer);
+      toastTimer = setTimeout(() => { els.toast.className = 'toast ' + kind; }, 1700);
+    }
+    function refreshStatusLabel() {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (peers > 0) setStatus('paired', role === 'phone' ? 'Computer connected' : 'Phone connected');
+      else setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
+    }
+
+    // ---- connection -------------------------------------------------------
+    const urlRoom = new URLSearchParams(location.search).get('room');
+    els.room.value = (urlRoom || localStorage.getItem(KEYS.room) || '').toUpperCase();
+
+    function wsUrl(room) {
+      const proto = location.protocol === 'https:' ? 'wss:' : 'ws:';
+      return `${proto}//${location.host}/ws?role=${role}&room=${encodeURIComponent(room)}`;
+    }
+
+    function connect() {
+      const room = els.room.value.trim().toUpperCase();
+      if (!/^[A-Z0-9]{3,12}$/.test(room)) { toast('Enter a 3–12 char code', 'bad'); return; }
+      localStorage.setItem(KEYS.room, room);
+      els.room.value = room;
+      manualClose = false;
+      cleanupSocket();
+      setStatus('waiting', 'Connecting…');
+      ws = new WebSocket(wsUrl(room));
+
+      ws.onopen = () => { setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
+        els.connect.textContent = 'Connected'; els.connect.classList.add('connected'); };
+      ws.onmessage = (ev) => {
+        let msg; try { msg = JSON.parse(ev.data); } catch { return; }
+        if (msg.type === 'joined' || msg.type === 'presence') {
+          peers = role === 'phone' ? (msg.desktops || 0) : (msg.phones || 0);
+          refreshStatusLabel();
+        } else if (msg.type === 'text') {
+          receiveText(msg.text);
+        } else if (msg.type === 'ack') {
+          markDelivered(msg.delivered > 0);
+          toast(msg.delivered > 0 ? 'Sent ✓' : 'Saved — no one connected yet', msg.delivered > 0 ? 'good' : 'bad');
+        } else if (msg.type === 'error') {
+          toast(msg.message || 'Error', 'bad');
+        }
+      };
+      ws.onclose = () => {
+        els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
+        if (manualClose) { setStatus('offline', 'Disconnected'); return; }
+        setStatus('offline', 'Reconnecting…');
+        clearTimeout(reconnectTimer); reconnectTimer = setTimeout(connect, 1500);
+      };
+      ws.onerror = () => {};
+    }
+
+    function cleanupSocket() {
+      if (ws) { manualClose = true; try { ws.close(); } catch {} ws = null; manualClose = false; }
+    }
+
+    // ---- send / receive ---------------------------------------------------
+    let lastOutEntry = null;
+    function doSend(text) {
+      const value = (text ?? '').trim();
+      if (!value) return false;
+      // Always record to history first, so nothing is lost on a bad connection.
+      const connected = ws && ws.readyState === WebSocket.OPEN;
+      lastOutEntry = addEntry({ dir: 'out', text: value, delivered: connected ? undefined : false });
+      if (!connected) { toast('Saved to History (not connected)', 'bad'); return false; }
+      ws.send(JSON.stringify({ type: 'text', text: value }));
+      return true;
+    }
+    function markDelivered(ok) {
+      if (lastOutEntry) {
+        lastOutEntry.delivered = ok ? true : false;
+        saveHistory(); renderHistory();
+        lastOutEntry = ok ? null : lastOutEntry;
+      }
+    }
+    function receiveText(text) {
+      const value = (text ?? '').trim();
+      if (!value) return;
+      addEntry({ dir: 'in', text: value });
+      els.latestText.textContent = value;
+      els.latestText.classList.remove('empty');
+      if (els.autoCopy.checked) copyText(value).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
+    }
+
+    // ---- tabs / role ------------------------------------------------------
+    function setRole(next) {
+      if (role === next) return;
+      role = next;
+      localStorage.setItem(KEYS.mode, next === 'desktop' ? 'receive' : 'send');
+      if (els.room.value) connect(); // reconnect with the new role
+    }
+    function setTab(tab) {
+      const map = { send: els.tabSend, receive: els.tabReceive, history: els.tabHistory };
+      for (const [k, btn] of Object.entries(map)) btn.setAttribute('aria-selected', String(k === tab));
+      els.panelSend.classList.toggle('hidden', tab !== 'send');
+      els.panelReceive.classList.toggle('hidden', tab !== 'receive');
+      els.panelHistory.classList.toggle('hidden', tab !== 'history');
+      if (tab === 'send') setRole('phone');
+      else if (tab === 'receive') setRole('desktop');
+      // history keeps the current role/connection
+    }
+    els.tabSend.addEventListener('click', () => setTab('send'));
+    els.tabReceive.addEventListener('click', () => setTab('receive'));
+    els.tabHistory.addEventListener('click', () => setTab('history'));
+
+    // ---- wire up controls -------------------------------------------------
+    els.connect.addEventListener('click', connect);
+    els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
+    els.send.addEventListener('click', () => { if (doSend(els.text.value)) els.text.value = ''; });
+
+    els.copyLatest.addEventListener('click', () => {
+      const t = els.latestText.classList.contains('empty') ? '' : els.latestText.textContent;
+      if (!t) { toast('Nothing to copy', 'bad'); return; }
+      copyText(t).then((ok) => {
+        if (ok) { els.copyLatest.textContent = 'Copied ✓'; els.copyLatest.classList.add('copied');
+          setTimeout(() => { els.copyLatest.textContent = 'Copy'; els.copyLatest.classList.remove('copied'); }, 1200); }
+      });
+    });
+
+    els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) === '1';
+    els.autoCopy.addEventListener('change', () => localStorage.setItem(KEYS.autocopy, els.autoCopy.checked ? '1' : '0'));
+
+    els.copyAll.addEventListener('click', () => {
+      if (!history.length) { toast('History is empty', 'bad'); return; }
+      const all = history.map((e) => e.text).join('\n');
+      copyText(all).then((ok) => {
+        if (ok) { els.copyAll.textContent = 'Copied ✓'; els.copyAll.classList.add('copied');
+          setTimeout(() => { els.copyAll.textContent = 'Copy all'; els.copyAll.classList.remove('copied'); }, 1300); }
+      });
+    });
+
+    els.clearSession.addEventListener('click', () => {
+      if (!history.length) return;
+      if (!confirm('Clear the whole session history?')) return;
+      history = []; saveHistory(); renderHistory();
+      els.latestText.textContent = 'Waiting for messages…';
+      els.latestText.classList.add('empty');
+      toast('Session cleared');
+    });
+
+    // ---- voice (in-app fallback; keyboard dictation is primary) ----------
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    let recog = null, listening = false, finalChunk = '';
+    if (!SpeechRecognition) els.mic.disabled = true;
+
+    function startListening() {
+      if (!SpeechRecognition || listening) return;
+      finalChunk = '';
+      recog = new SpeechRecognition();
+      recog.lang = navigator.language || 'en-US';
+      recog.interimResults = true; recog.continuous = true;
+      recog.onresult = (e) => {
+        let interim = '';
+        for (let i = e.resultIndex; i < e.results.length; i++) {
+          const t = e.results[i][0].transcript;
+          if (e.results[i].isFinal) finalChunk += t; else interim += t;
+        }
+        els.interim.textContent = interim;
+        els.interim.classList.toggle('show', !!interim);
+      };
+      recog.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Mic permission denied', 'bad'); };
+      recog.onend = () => {
+        listening = false; els.mic.classList.remove('listening');
+        els.interim.textContent = ''; els.interim.classList.remove('show');
+        const spoken = finalChunk.trim();
+        if (spoken) doSend(spoken);
+        finalChunk = '';
+      };
+      try { recog.start(); listening = true; els.mic.classList.add('listening'); } catch { listening = false; }
+    }
+    function stopListening() { if (recog && listening) { try { recog.stop(); } catch {} } }
+    els.mic.addEventListener('pointerdown', (e) => { e.preventDefault(); startListening(); });
+    els.mic.addEventListener('pointerup', (e) => { e.preventDefault(); stopListening(); });
+    els.mic.addEventListener('pointercancel', stopListening);
+    els.mic.addEventListener('pointerleave', () => { if (listening) stopListening(); });
+
+    // ---- boot -------------------------------------------------------------
+    renderHistory();
+    setTab(localStorage.getItem(KEYS.mode) === 'receive' ? 'receive' : 'send');
+    if (els.room.value) connect(); else setStatus('offline', 'Enter a code');
+  </script>
+</body>
+</html>

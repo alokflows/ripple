@@ -1,0 +1,12 @@
+# One-click deploy to Render (free tier, native WebSocket support).
+# Deploy: https://render.com/deploy?repo=https://github.com/alokflows/yap
+services:
+  - type: web
+    name: yap
+    runtime: node
+    rootDir: server
+    plan: free
+    buildCommand: npm install
+    startCommand: npm start
+    healthCheckPath: /healthz
+    autoDeploy: true

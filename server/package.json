@@ -1,0 +1,17 @@
+{
+  "name": "voicebridge-relay",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "description": "Tiny WebSocket relay that pairs a phone web app with a desktop agent so phone text/voice pastes at the desktop cursor.",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  },
+  "dependencies": {
+    "ws": "^8.18.0"
+  }
+}
