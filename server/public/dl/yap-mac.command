@@ -32,5 +32,5 @@ while true; do
       echo "  copied #$ID  (Cmd-V to paste)"
     done <<< "$RESP"
   fi
-  sleep 1.5
+  sleep 0.7
 done

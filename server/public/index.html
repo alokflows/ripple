@@ -187,29 +187,32 @@
     .pair .field { flex: 1; min-width: 0; }
     .pair label { font-size: 0.66rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; }
     .pair input {
-      width: 100%; background: transparent; border: none; color: var(--ink);
-      font-size: 1.35rem; font-weight: 600; letter-spacing: 0.18em; text-transform: uppercase;
-      margin-top: 1px;
+      flex: 1; min-width: 0; background: transparent; border: none; color: var(--ink);
+      font-size: 1.3rem; font-weight: 600; letter-spacing: 0.16em; text-transform: uppercase;
     }
     .pair input:focus { outline: none; }
     .pair input::placeholder { color: var(--ink-faint); letter-spacing: 0.04em; font-weight: 500; text-transform: none; }
-    .pair button {
-      flex-shrink: 0; padding: 9px 14px; border-radius: 10px; cursor: pointer;
-      border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-soft);
-      font-size: 0.8rem; font-weight: 600;
-      transition: transform 120ms var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease);
+    .pair-state { display: flex; align-items: center; gap: 9px; flex: 1; min-width: 0; flex-wrap: wrap; }
+    .pair-cta {
+      flex: 1; padding: 11px 12px; border-radius: 10px; cursor: pointer;
+      border: 1px solid var(--hairline); background: var(--surface); color: var(--ink);
+      font-size: 0.9rem; font-weight: 600;
+      transition: transform 120ms var(--ease), color var(--dur) var(--ease), border-color var(--dur) var(--ease), background var(--dur) var(--ease), opacity var(--dur) var(--ease);
     }
-    .pair button:hover { color: var(--ink); border-color: var(--ink-faint); }
-    .pair button:active { transform: scale(0.95); }
-    #connectBtn { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
-    #connectBtn:hover { opacity: 0.9; color: var(--bg-elev); }
-    #connectBtn.connected { background: var(--good); border-color: var(--good); color: oklch(99% 0.01 150); }
+    .pair-cta:hover { border-color: var(--ink-faint); }
+    .pair-cta:active { transform: scale(0.97); }
+    .pair-cta.primary { background: var(--ink); color: var(--bg-elev); border-color: var(--ink); }
+    .pair-cta.primary:hover { opacity: 0.9; }
+    .pair-state .ghost-btn { flex-shrink: 0; }
+    .code-display { font-size: 1.3rem; font-weight: 650; letter-spacing: 0.16em; text-transform: uppercase; color: var(--ink); margin-top: 1px; }
+    .icon-mini { flex-shrink: 0; width: 30px; height: 38px; border: none; background: transparent; color: var(--ink-faint); font-size: 1.5rem; line-height: 1; cursor: pointer; }
+    .icon-mini:hover { color: var(--ink); }
 
     .panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .hidden { display: none !important; }
 
     /* ---- Room bar (members + host lock) --------------------------------- */
-    .room-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 0 2px; margin-top: -4px; }
+    .room-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 2px 14px; }
     .members { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
     .member {
       display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
@@ -219,9 +222,9 @@
     .member svg { width: 13px; height: 13px; opacity: 0.8; }
     .member.me { color: var(--ink); border-color: var(--hairline); }
     .member .host-tag { color: var(--accent); font-weight: 600; }
-    .room-bar .invite { display: inline-flex; align-items: center; gap: 6px; }
-    .room-bar .invite svg { width: 14px; height: 14px; }
-    .room-bar .invite:hover { color: var(--accent); border-color: var(--accent); }
+    .invite { display: inline-flex; align-items: center; gap: 6px; }
+    .invite svg { width: 14px; height: 14px; }
+    .invite:hover { color: var(--accent); border-color: var(--accent); }
     .room-bar .toggle .track { width: 36px; height: 22px; }
     .room-bar .toggle .thumb { width: 16px; height: 16px; }
     .room-bar .toggle input:checked + .track .thumb { transform: translateX(14px); }
@@ -241,10 +244,10 @@
     textarea:focus { outline: none; }
     textarea::placeholder { color: var(--ink-faint); }
     .interim {
-      padding: 0 18px 6px; color: var(--accent); font-size: 1rem; font-style: italic;
-      opacity: 0; transition: opacity 160ms var(--ease); min-height: 0;
+      padding: 2px 18px 12px; color: var(--accent); font-size: 1rem; font-style: italic; line-height: 1.4;
+      opacity: 0; max-height: 0; overflow: hidden; transition: opacity 160ms var(--ease);
     }
-    .interim.show { opacity: 0.9; }
+    .interim.show { opacity: 0.9; max-height: 6em; }
     .toolbar {
       display: flex; align-items: center; gap: 12px;
       padding: 12px 14px 14px; border-top: 1px solid var(--hairline-2);
@@ -438,32 +441,36 @@
     <div class="segmented" role="tablist" aria-label="Mode">
       <button id="tabSend" role="tab" aria-selected="true">Send</button>
       <button id="tabReceive" role="tab" aria-selected="false">Receive</button>
+      <button id="tabDevices" role="tab" aria-selected="false">Devices</button>
       <button id="tabHistory" role="tab" aria-selected="false">History</button>
     </div>
 
+    <!-- Pairing: Create / Join, then a locked code with Copy + Change -->
     <div class="pair">
-      <div class="field">
-        <label for="room">Pairing code</label>
-        <input id="room" inputmode="latin" autocomplete="off" autocapitalize="characters"
-               spellcheck="false" maxlength="12" placeholder="tap New →" aria-label="Pairing code" />
+      <div class="pair-state" id="pairStart">
+        <button class="pair-cta primary" id="createBtn" type="button">Create code</button>
+        <button class="pair-cta" id="joinBtn" type="button">Join with code</button>
       </div>
-      <button id="genBtn" type="button" title="Generate a new random code">New</button>
-      <button id="connectBtn" type="button">Connect</button>
-    </div>
 
-    <!-- Room: who's connected + invite + host's "Allow others" lock -->
-    <div class="room-bar hidden" id="roomBar">
-      <div class="members" id="members"></div>
-      <button class="ghost-btn invite" id="inviteBtn" type="button" title="Share a link that pairs your friend automatically">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
-        Invite
-      </button>
-      <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
-        <input type="checkbox" id="allowOthers" checked />
-        <span class="track"><span class="thumb"></span></span>
-        <span class="toggle-label">Allow others</span>
-      </label>
-      <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
+      <div class="pair-state hidden" id="pairJoin">
+        <button class="icon-mini" id="joinBack" type="button" aria-label="Back">‹</button>
+        <input id="room" inputmode="latin" autocomplete="off" autocapitalize="characters"
+               spellcheck="false" maxlength="12" placeholder="enter code" aria-label="Pairing code" />
+        <button class="pair-cta primary" id="joinGo" type="button">Join</button>
+      </div>
+
+      <div class="pair-state hidden" id="pairLocked">
+        <div class="field">
+          <label>Pairing code</label>
+          <div class="code-display" id="codeDisplay">—</div>
+        </div>
+        <button class="ghost-btn" id="copyCode" type="button">Copy</button>
+        <button class="ghost-btn invite" id="inviteBtn" type="button" title="Share a link that pairs your friend automatically">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
+          Invite
+        </button>
+        <button class="ghost-btn" id="changeBtn" type="button">Change</button>
+      </div>
     </div>
 
     <!-- SEND -->
@@ -498,6 +505,20 @@
             <span class="toggle-label">Auto-copy</span>
           </label>
         </div>
+      </div>
+    </section>
+
+    <!-- DEVICES -->
+    <section class="panel hidden" id="panelDevices" aria-label="Devices">
+      <!-- who's connected + host's "Allow others" lock -->
+      <div class="room-bar hidden" id="roomBar">
+        <div class="members" id="members"></div>
+        <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
+          <input type="checkbox" id="allowOthers" checked />
+          <span class="track"><span class="thumb"></span></span>
+          <span class="toggle-label">Allow others</span>
+        </label>
+        <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
       </div>
 
       <div class="paste-setup">
@@ -550,11 +571,14 @@
   <script>
     const $ = (id) => document.getElementById(id);
     const els = {
-      room: $('room'), connect: $('connectBtn'), gen: $('genBtn'), status: $('status'), statusText: $('statusText'),
+      room: $('room'), status: $('status'), statusText: $('statusText'),
       tagline: $('tagline'), themeBtn: $('themeBtn'), themeColor: $('themeColor'),
+      pairStart: $('pairStart'), pairJoin: $('pairJoin'), pairLocked: $('pairLocked'),
+      createBtn: $('createBtn'), joinBtn: $('joinBtn'), joinGo: $('joinGo'), joinBack: $('joinBack'),
+      codeDisplay: $('codeDisplay'), copyCode: $('copyCode'), changeBtn: $('changeBtn'),
       text: $('text'), interim: $('interim'), mic: $('mic'), micHint: $('micHint'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
-      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
-      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
+      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'), tabHistory: $('tabHistory'),
+      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'), panelHistory: $('panelHistory'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
       pasteToggle: $('pasteToggle'), pasteBody: $('pasteBody'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
@@ -728,6 +752,7 @@
       lockedOut = false; // a deliberate connect attempt clears any prior refusal
       localStorage.setItem(KEYS.room, room);
       els.room.value = room;
+      setPairState('locked'); // show the locked code immediately while connecting
       if (els.psCode) updatePasteCode();
       // Don't churn: if already live on the same room+role, leave it alone.
       if (!force && ws && (ws.readyState === WebSocket.OPEN || ws.readyState === WebSocket.CONNECTING)
@@ -743,7 +768,6 @@
         if (sock !== ws) return;
         backoff = 500;
         setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
-        els.connect.textContent = 'Connected'; els.connect.classList.add('connected');
       };
       sock.onmessage = (ev) => {
         if (sock !== ws) return;
@@ -752,9 +776,8 @@
       };
       sock.onclose = () => {
         if (sock._intentional || sock !== ws) return; // ignore intentional / stale closes
-        els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
         els.roomBar.classList.add('hidden');
-        setStatus('offline', 'Reconnecting…');
+        setStatus('offline', 'Reconnecting…'); // stay on the locked code; we auto-retry
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(() => connect(true), backoff);
         backoff = Math.min(backoff * 2, 5000); // exponential backoff, capped
@@ -803,8 +826,8 @@
           // so set the standing UI here rather than relying on onclose.
           lockedOut = true;
           closeCurrent();
-          els.connect.textContent = 'Connect'; els.connect.classList.remove('connected');
           els.roomBar.classList.add('hidden');
+          setPairState('start'); // let them try a different code
           setStatus('offline', 'Room locked');
         }
         toast(msg.message || 'Error', 'bad');
@@ -860,22 +883,29 @@
       if (els.room.value) connect(); // reconnect with the new role
     }
     function setTab(tab) {
-      const map = { send: els.tabSend, receive: els.tabReceive, history: els.tabHistory };
+      const map = { send: els.tabSend, receive: els.tabReceive, devices: els.tabDevices, history: els.tabHistory };
       for (const [k, btn] of Object.entries(map)) btn.setAttribute('aria-selected', String(k === tab));
       els.panelSend.classList.toggle('hidden', tab !== 'send');
       els.panelReceive.classList.toggle('hidden', tab !== 'receive');
+      els.panelDevices.classList.toggle('hidden', tab !== 'devices');
       els.panelHistory.classList.toggle('hidden', tab !== 'history');
       if (tab === 'send') setRole('phone');
       else if (tab === 'receive') setRole('desktop');
+      // devices / history keep the current role + connection
     }
     els.tabSend.addEventListener('click', () => setTab('send'));
     els.tabReceive.addEventListener('click', () => setTab('receive'));
+    els.tabDevices.addEventListener('click', () => setTab('devices'));
     els.tabHistory.addEventListener('click', () => setTab('history'));
 
-    // ---- wire up controls -------------------------------------------------
-    els.connect.addEventListener('click', () => connect(true));
-    els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(true); });
-
+    // ---- pairing: Create / Join, then a locked code ----------------------
+    function setPairState(state) {
+      els.pairStart.classList.toggle('hidden', state !== 'start');
+      els.pairJoin.classList.toggle('hidden', state !== 'join');
+      els.pairLocked.classList.toggle('hidden', state !== 'locked');
+      if (state === 'locked') els.codeDisplay.textContent = (els.room.value || '').toUpperCase();
+      if (state === 'join') setTimeout(() => els.room.focus(), 0);
+    }
     function generateCode(len = 5) {
       const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O/1/I
       let out = '';
@@ -885,11 +915,29 @@
       for (let i = 0; i < len; i++) out += cs[arr[i] % cs.length];
       return out;
     }
-    els.gen.addEventListener('click', () => {
+    els.createBtn.addEventListener('click', () => {
       els.room.value = generateCode();
-      connect(true);
-      toast('New code: ' + els.room.value, 'good');
+      connect(true); // connect() flips to the locked view
     });
+    els.joinBtn.addEventListener('click', () => setPairState('join'));
+    els.joinBack.addEventListener('click', () => setPairState('start'));
+    els.joinGo.addEventListener('click', () => connect(true));
+    els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(true); });
+    els.copyCode.addEventListener('click', () => {
+      copyText((els.room.value || '').toUpperCase()).then((ok) => {
+        if (ok) { els.copyCode.textContent = 'Copied ✓'; els.copyCode.classList.add('copied');
+          setTimeout(() => { els.copyCode.textContent = 'Copy'; els.copyCode.classList.remove('copied'); }, 1200); }
+      });
+    });
+    els.changeBtn.addEventListener('click', () => {
+      closeCurrent();
+      clearTimeout(reconnectTimer);
+      lockedOut = false;
+      setStatus('offline', 'Not paired');
+      els.roomBar.classList.add('hidden');
+      setPairState('start');
+    });
+
     els.send.addEventListener('click', () => { if (doSend(els.text.value)) els.text.value = ''; });
 
     els.copyInput.addEventListener('click', () => {
@@ -984,6 +1032,7 @@
     // ---- voice dictation --------------------------------------------------
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     const voiceSupported = !!SpeechRecognition;
+    const isMobile = /Android|iPhone|iPad|iPod/i.test(navigator.userAgent);
     let recog = null, listening = false, wantListening = false;
 
     function setMicState(on) {
@@ -1021,7 +1070,9 @@
         } else if (e.error === 'audio-capture') {
           wantListening = false; toast('No microphone found', 'bad');
         } else if (e.error === 'network') {
-          wantListening = false; toast('Voice needs internet; keyboard 🎤 works offline', 'bad');
+          wantListening = false;
+          toast(isMobile ? 'Voice needs internet; your keyboard 🎤 works offline'
+                         : 'On a computer, dictation needs Chrome or Edge + internet — or just type', 'bad');
         } else if (e.error !== 'aborted') {
           toast('Mic error: ' + e.error, 'bad');
         }
@@ -1060,7 +1111,9 @@
     // ---- boot -------------------------------------------------------------
     renderHistory();
     setTab(localStorage.getItem(KEYS.mode) === 'receive' ? 'receive' : 'send');
-    if (els.room.value) connect(); else setStatus('offline', 'Enter a code');
+    // Returning paired devices (or an invite link) reconnect straight to the
+    // locked code; first-time visitors get the Create / Join choice.
+    if (els.room.value) connect(); else { setPairState('start'); setStatus('offline', 'Not paired'); }
 
     // ---- PWA service worker ----------------------------------------------
     if ('serviceWorker' in navigator) {
