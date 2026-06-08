@@ -164,6 +164,8 @@
     }
     .send:active { transform: scale(0.96); }
     .send:disabled { opacity: 0.4; }
+    .send.alt { background: transparent; color: var(--ink-soft); border: 1px solid var(--hairline); padding: 0 16px; }
+    .send.alt.copied { color: var(--good); border-color: oklch(80% 0.15 155 / 0.4); }
 
     /* Receive ------------------------------------------------------------- */
     .latest {
@@ -294,6 +296,7 @@
             </svg>
           </button>
           <p class="mic-hint">Tap the box, hit the <b>🎤 on your keyboard</b> to dictate, then Send.</p>
+          <button class="send alt" id="copyInput" type="button">Copy</button>
           <button class="send" id="send" type="button">Send</button>
         </div>
       </div>
@@ -329,7 +332,7 @@
     const $ = (id) => document.getElementById(id);
     const els = {
       room: $('room'), connect: $('connectBtn'), status: $('status'), statusText: $('statusText'),
-      text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), toast: $('toast'),
+      text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
@@ -346,7 +349,10 @@
     // ---- session history (persisted; survives disconnect / refresh) -------
     let history = loadHistory();
     function loadHistory() { try { return JSON.parse(localStorage.getItem(KEYS.history)) || []; } catch { return []; } }
-    function saveHistory() { localStorage.setItem(KEYS.history, JSON.stringify(history.slice(-MAX_HISTORY))); }
+    function saveHistory() {
+      try { localStorage.setItem(KEYS.history, JSON.stringify(history.slice(-MAX_HISTORY))); }
+      catch { /* storage full — history stays in memory for this session */ }
+    }
     let idSeq = Date.now();
     function addEntry(entry) {
       const e = { id: ++idSeq, t: Date.now(), ...entry };
@@ -540,6 +546,15 @@
     els.connect.addEventListener('click', connect);
     els.room.addEventListener('keydown', (e) => { if (e.key === 'Enter') connect(); });
     els.send.addEventListener('click', () => { if (doSend(els.text.value)) els.text.value = ''; });
+
+    els.copyInput.addEventListener('click', () => {
+      const t = els.text.value.trim();
+      if (!t) { toast('Nothing to copy', 'bad'); return; }
+      copyText(t).then((ok) => {
+        if (ok) { els.copyInput.textContent = 'Copied ✓'; els.copyInput.classList.add('copied');
+          setTimeout(() => { els.copyInput.textContent = 'Copy'; els.copyInput.classList.remove('copied'); }, 1200); }
+      });
+    });
 
     els.copyLatest.addEventListener('click', () => {
       const t = els.latestText.classList.contains('empty') ? '' : els.latestText.textContent;

@@ -82,7 +82,7 @@ const server = http.createServer(async (req, res) => {
 // ---------------------------------------------------------------------------
 const rooms = new Map();
 
-const MAX_TEXT_LENGTH = 20_000; // guard against unbounded forwarded payloads
+const MAX_TEXT_LENGTH = 1_000_000; // ~150k words — effectively no limit for dictation
 const ROOM_CODE_RE = /^[A-Za-z0-9]{3,12}$/;
 
 function getRoom(code) {
