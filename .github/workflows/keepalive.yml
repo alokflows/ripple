@@ -7,7 +7,7 @@ name: keep-alive
 
 on:
   schedule:
-    - cron: '*/12 * * * *' # every ~12 minutes (Render sleeps after 15 idle)
+    - cron: '*/10 * * * *' # every ~10 minutes (Render sleeps after 15 idle)
   workflow_dispatch: {}
 
 jobs:
@@ -16,11 +16,10 @@ jobs:
     steps:
       - name: Ping relay /healthz
         run: |
+          # Defaults to the public deployment so keep-alive works with zero setup.
+          # Override by setting the repo variable RENDER_URL to your own URL.
           URL="${{ vars.RENDER_URL }}"
-          if [ -z "$URL" ]; then
-            echo "RENDER_URL not set yet — skipping. Set it once the app is deployed."
-            exit 0
-          fi
+          if [ -z "$URL" ]; then URL="https://yap-mkk4.onrender.com"; fi
           echo "Pinging ${URL%/}/healthz"
           if curl -fsS --max-time 60 "${URL%/}/healthz"; then
             echo " — awake ✓"

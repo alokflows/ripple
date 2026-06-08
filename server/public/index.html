@@ -219,7 +219,9 @@
     .member svg { width: 13px; height: 13px; opacity: 0.8; }
     .member.me { color: var(--ink); border-color: var(--hairline); }
     .member .host-tag { color: var(--accent); font-weight: 600; }
-    .room-bar .toggle { margin-left: auto; }
+    .room-bar .invite { display: inline-flex; align-items: center; gap: 6px; }
+    .room-bar .invite svg { width: 14px; height: 14px; }
+    .room-bar .invite:hover { color: var(--accent); border-color: var(--accent); }
     .room-bar .toggle .track { width: 36px; height: 22px; }
     .room-bar .toggle .thumb { width: 16px; height: 16px; }
     .room-bar .toggle input:checked + .track .thumb { transform: translateX(14px); }
@@ -449,9 +451,13 @@
       <button id="connectBtn" type="button">Connect</button>
     </div>
 
-    <!-- Room: who's connected + host's "Allow others" lock -->
+    <!-- Room: who's connected + invite + host's "Allow others" lock -->
     <div class="room-bar hidden" id="roomBar">
       <div class="members" id="members"></div>
+      <button class="ghost-btn invite" id="inviteBtn" type="button" title="Share a link that pairs your friend automatically">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4 12v7a1 1 0 0 0 1 1h14a1 1 0 0 0 1-1v-7"/><path d="M16 6l-4-4-4 4"/><path d="M12 2v14"/></svg>
+        Invite
+      </button>
       <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
         <input type="checkbox" id="allowOthers" checked />
         <span class="track"><span class="thumb"></span></span>
@@ -553,7 +559,7 @@
       pasteToggle: $('pasteToggle'), pasteBody: $('pasteBody'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
       feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
-      roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'),
+      roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'), inviteBtn: $('inviteBtn'),
     };
 
     const KEYS = { room: 'yap.room', mode: 'yap.mode', history: 'yap.history', autocopy: 'yap.autocopy', theme: 'yap.theme', did: 'yap.did' };
@@ -906,6 +912,20 @@
 
     els.autoCopy.checked = localStorage.getItem(KEYS.autocopy) === '1';
     els.autoCopy.addEventListener('change', () => localStorage.setItem(KEYS.autocopy, els.autoCopy.checked ? '1' : '0'));
+
+    // Invite: share/copy a link that pairs a friend automatically (uses the
+    // ?room= auto-connect the app already supports — no code typing).
+    els.inviteBtn.addEventListener('click', async () => {
+      const code = (els.room.value || '').trim().toUpperCase();
+      if (!code) { toast('Connect with a code first', 'bad'); return; }
+      const url = location.origin + '/?room=' + encodeURIComponent(code);
+      if (navigator.share) {
+        try { await navigator.share({ title: 'Yap', text: 'Join my Yap — type and it lands on my screen.', url }); return; }
+        catch (e) { if (e && e.name === 'AbortError') return; } // cancelled → do nothing
+      }
+      const ok = await copyText(url);
+      toast(ok ? 'Invite link copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
+    });
 
     // Host toggles whether new devices may join this code.
     els.allowOthers.addEventListener('change', () => {

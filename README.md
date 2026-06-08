@@ -26,7 +26,7 @@ It's the Wispr-Flow idea split across two devices: your **phone** is the microph
 ## How it works
 
 1. **Open [yap-mkk4.onrender.com](https://yap-mkk4.onrender.com)** on your phone — and on your computer in a second tab.
-2. Tap **New** to generate a pairing code, and enter the **same code** on both.
+2. Tap **New** to generate a pairing code, and enter the **same code** on both — or hit **Invite** to share a link that pairs the other device automatically.
 3. On the phone's **Send** tab, type or dictate, then hit **Send**.
 4. On the computer, the text shows up in the **Receive** tab (copy it), or — better — pastes straight at your cursor (see below).
 
