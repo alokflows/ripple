@@ -79,9 +79,15 @@ A GitHub Action (`.github/workflows/keepalive.yml`) pings the deployment every ~
 | `server/public/dl/` | The zero-install desktop helpers (macOS / Windows / Linux) |
 | `agent/agent.py` | Optional advanced Python agent (clipboard-paste / keystroke modes) |
 
+## Rooms & access
+
+- Anyone with the code can join — so the first device becomes the **host** and gets an **Allow others** toggle.
+- Turn it off to **lock the room** to the devices already in it: your own phone/computer can still drop and reconnect (each device keeps a private local id), but **new/unknown devices are refused**.
+- Everyone sees the small **member list** of who's connected. The lock lives on the session, so it survives brief disconnects.
+
 ## Security notes
 
-- The **pairing code is the only access control** — use a non-obvious one so nobody can guess your room.
+- The **pairing code is the access control** — use a non-obvious one, and lock the room once your devices are in.
 - The relay **never writes to disk**; rooms and history live in memory only and are evicted after 12h idle.
 - Always run the relay behind **HTTPS/WSS** (Render does this for you).
 
@@ -92,7 +98,7 @@ Yap is a **PWA** — open it and choose *Add to Home Screen* (iOS) or *Install* 
 ## Roadmap
 
 - QR code that opens the phone app pre-paired
-- **Host-controlled rooms** — when a second device joins your code, the first device can approve or deny it (so a guessed code can't silently listen in)
+- Per-device **approve / deny** prompts for the host (on top of today's room lock)
 - Optional end-to-end encryption of relayed text
 
 ---
