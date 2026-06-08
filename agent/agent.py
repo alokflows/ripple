@@ -164,8 +164,8 @@ def main() -> None:
     parser = argparse.ArgumentParser(description="VoiceBridge desktop agent")
     parser.add_argument(
         "--server",
-        default=os.environ.get("VOICEBRIDGE_SERVER", "ws://localhost:8080"),
-        help="Relay address, e.g. wss://your-relay.example.com (default: ws://localhost:8080)",
+        default=os.environ.get("VOICEBRIDGE_SERVER", "wss://yap-mkk4.onrender.com"),
+        help="Relay address (default: wss://yap-mkk4.onrender.com). Use ws://localhost:8080 for local dev.",
     )
     parser.add_argument(
         "--room",

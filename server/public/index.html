@@ -290,13 +290,13 @@
                   aria-label="Text to send"></textarea>
         <div class="interim" id="interim" aria-hidden="true"></div>
         <div class="toolbar">
-          <button class="mic" id="mic" type="button" aria-label="Hold to talk">
+          <button class="mic" id="mic" type="button" aria-label="Dictate" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="2" width="6" height="12" rx="3" />
               <path d="M5 10a7 7 0 0 0 14 0" /><path d="M12 17v4" /><path d="M8 21h8" />
             </svg>
           </button>
-          <p class="mic-hint">Tap the box, hit the <b>🎤 on your keyboard</b> to dictate, then Send.</p>
+          <p class="mic-hint" id="micHint">Tap <b>🎤</b> to dictate, then Send.</p>
           <button class="send alt" id="copyInput" type="button">Copy</button>
           <button class="send" id="send" type="button">Send</button>
         </div>
@@ -333,7 +333,7 @@
     const $ = (id) => document.getElementById(id);
     const els = {
       room: $('room'), connect: $('connectBtn'), gen: $('genBtn'), status: $('status'), statusText: $('statusText'),
-      text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
+      text: $('text'), interim: $('interim'), mic: $('mic'), micHint: $('micHint'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabHistory: $('tabHistory'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelHistory: $('panelHistory'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
@@ -634,41 +634,85 @@
       toast('Session cleared');
     });
 
-    // ---- voice (in-app fallback; keyboard dictation is primary) ----------
+    // ---- voice dictation --------------------------------------------------
+    // Tap to toggle. Web Speech works on Android Chrome; iOS Safari/Chrome
+    // don't support it, so there the button becomes a shortcut that points the
+    // user at their keyboard's own dictation (which is on-device and better).
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    let recog = null, listening = false, finalChunk = '';
-    if (!SpeechRecognition) els.mic.disabled = true;
+    const voiceSupported = !!SpeechRecognition;
+    let recog = null, listening = false, wantListening = false;
+
+    function setMicState(on) {
+      els.mic.classList.toggle('listening', on);
+      els.mic.setAttribute('aria-pressed', String(on));
+    }
+    function appendSpoken(chunk) {
+      const clean = chunk.trim();
+      if (!clean) return;
+      const cur = els.text.value;
+      const sep = cur && !/\s$/.test(cur) ? ' ' : '';
+      els.text.value = cur + sep + clean;
+    }
 
     function startListening() {
-      if (!SpeechRecognition || listening) return;
-      finalChunk = '';
+      if (!voiceSupported || listening) return;
       recog = new SpeechRecognition();
       recog.lang = navigator.language || 'en-US';
-      recog.interimResults = true; recog.continuous = true;
+      recog.interimResults = true;
+      recog.continuous = true;
       recog.onresult = (e) => {
         let interim = '';
         for (let i = e.resultIndex; i < e.results.length; i++) {
           const t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) finalChunk += t; else interim += t;
+          if (e.results[i].isFinal) appendSpoken(t); else interim += t;
         }
         els.interim.textContent = interim;
         els.interim.classList.toggle('show', !!interim);
       };
-      recog.onerror = (e) => { if (e.error === 'not-allowed' || e.error === 'service-not-allowed') toast('Mic permission denied', 'bad'); };
-      recog.onend = () => {
-        listening = false; els.mic.classList.remove('listening');
-        els.interim.textContent = ''; els.interim.classList.remove('show');
-        const spoken = finalChunk.trim();
-        if (spoken) doSend(spoken);
-        finalChunk = '';
+      recog.onerror = (e) => {
+        if (e.error === 'not-allowed' || e.error === 'service-not-allowed') {
+          wantListening = false; toast('Allow microphone access for this site', 'bad');
+        } else if (e.error === 'no-speech') {
+          toast('Didn’t catch that — try again');
+        } else if (e.error === 'audio-capture') {
+          wantListening = false; toast('No microphone found', 'bad');
+        } else if (e.error === 'network') {
+          wantListening = false; toast('Voice needs internet; keyboard 🎤 works offline', 'bad');
+        } else if (e.error !== 'aborted') {
+          toast('Mic error: ' + e.error, 'bad');
+        }
       };
-      try { recog.start(); listening = true; els.mic.classList.add('listening'); } catch { listening = false; }
+      recog.onend = () => {
+        listening = false;
+        els.interim.textContent = ''; els.interim.classList.remove('show');
+        // Mobile Chrome stops after short pauses; restart while still wanted.
+        if (wantListening) {
+          try { recog.start(); listening = true; } catch { setMicState(false); }
+        } else {
+          setMicState(false);
+        }
+      };
+      try { recog.start(); listening = true; wantListening = true; setMicState(true); }
+      catch { listening = false; setMicState(false); }
     }
-    function stopListening() { if (recog && listening) { try { recog.stop(); } catch {} } }
-    els.mic.addEventListener('pointerdown', (e) => { e.preventDefault(); startListening(); });
-    els.mic.addEventListener('pointerup', (e) => { e.preventDefault(); stopListening(); });
-    els.mic.addEventListener('pointercancel', stopListening);
-    els.mic.addEventListener('pointerleave', () => { if (listening) stopListening(); });
+    function stopListening() {
+      wantListening = false;
+      if (recog && listening) { try { recog.stop(); } catch {} }
+      setMicState(false);
+    }
+    function toggleMic() {
+      if (!voiceSupported) {
+        els.text.focus();
+        toast('On this phone, tap the box and use your keyboard’s 🎤');
+        return;
+      }
+      if (wantListening) stopListening(); else startListening();
+    }
+    els.mic.addEventListener('click', (e) => { e.preventDefault(); toggleMic(); });
+
+    if (!voiceSupported && els.micHint) {
+      els.micHint.innerHTML = 'Tap the box, then your keyboard’s <b>🎤</b> to dictate — best quality on iPhone.';
+    }
 
     // ---- boot -------------------------------------------------------------
     renderHistory();
