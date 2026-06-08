@@ -1,106 +1,98 @@
-# VoiceBridge
+<div align="center">
 
-Speak or type on your phone → the text pastes at your computer's cursor.
-Cross-platform (iOS, Android, any browser), minimal setup, **no API keys**.
+# 🗣️ Yap
 
-It's the Wispr-Flow idea split across two devices: your phone is the
-microphone + keyboard, your computer is where the words land.
+**Speak or type on your phone → the text lands on your computer, right where your cursor is.**
+
+No app to install. No accounts. No API keys. Just open a web page and a pairing code.
+
+[**▶ Open the app**](https://yap-mkk4.onrender.com) · [How it works](#how-it-works) · [Paste at your cursor](#paste-straight-to-your-cursor) · [Self-host](#self-host-the-relay)
+
+</div>
+
+---
+
+It's the Wispr-Flow idea split across two devices: your **phone** is the microphone and keyboard, your **computer** is where the words appear.
 
 ```
- ┌──────────┐    text over WebSocket    ┌──────────┐   pastes at    ┌──────────┐
- │  Phone   │ ────────────────────────► │  Relay   │ ─────────────► │ Computer │
- │ web app  │      (pairing code)       │ (Node)   │   the cursor   │  agent   │
- └──────────┘                           └──────────┘                └──────────┘
-   type or                              hosts the page              python agent.py
-   hold-to-talk                         + forwards text             clipboard-pastes
+ ┌──────────┐     text over WebSocket      ┌──────────┐                ┌──────────┐
+ │  Phone   │ ───────────────────────────► │  Relay   │ ─────────────► │ Computer │
+ │ web app  │        (pairing code)        │  (Node)  │   clipboard +  │  helper  │
+ └──────────┘                              └──────────┘   ⌘/Ctrl-V     └──────────┘
+   type or                                 hosts the page              syncs clipboard
+   dictate                                 + relays text               + auto-pastes
 ```
 
-## Why this design (and not Bluetooth)
+## How it works
 
-Phone browsers can't reliably inject text into a desktop over Bluetooth, and
-pairing arbitrary phones to PCs is fragile — the opposite of "minimal setup."
-A web page + a tiny relay + a small desktop agent gives the same
-"speak → appears at cursor" result, works on every device, and hosts for free.
+1. **Open [yap-mkk4.onrender.com](https://yap-mkk4.onrender.com)** on your phone — and on your computer in a second tab.
+2. Tap **New** to generate a pairing code, and enter the **same code** on both.
+3. On the phone's **Send** tab, type or dictate, then hit **Send**.
+4. On the computer, the text shows up in the **Receive** tab (copy it), or — better — pastes straight at your cursor (see below).
 
-## Transcription
+Everything also lands in a **History** tab on both devices, and survives refreshes and dropped connections.
 
-Voice uses the **browser's built-in Web Speech API** — free, no key, online.
-It works in Chrome/Edge/Android and recent iOS Safari. If voice isn't
-supported, the text box always works. You can later swap in a higher-accuracy
-cloud engine (OpenAI Whisper, Deepgram) — see *Upgrading transcription* below.
+## Paste straight to your cursor
 
-## Components
+A browser is sandboxed — it physically can't type into Word, VS Code, or any other app. So Yap ships a **tiny helper** that does.
 
-| Folder    | What it is                          | Runs on        |
-|-----------|-------------------------------------|----------------|
-| `server/` | Relay + phone web app (Node.js)     | a host or your PC |
-| `agent/`  | Desktop agent that pastes (Python)  | your computer  |
+> In the app, open the **Receive** tab → **Set up** → download the helper for your OS. It auto-highlights your platform.
 
-## Quick start (all local, one machine + phone on same Wi-Fi)
+The helper is **zero-install** (pure built-in tools — `curl` + your system clipboard, no Python, no dependencies):
 
-1. **Start the relay**
-   ```bash
-   cd server
-   npm install
-   npm start            # serves http://localhost:8080
-   ```
+| OS | Download | Auto-paste |
+|----|----------|------------|
+| **macOS** | `yap-mac.command` (double-click) | needs one-time Accessibility permission |
+| **Windows** | `yap-windows.bat` (double-click) | works out of the box |
+| **Linux** | `yap-linux.sh` (`bash yap-linux.sh`) | needs `xdotool` (optional) |
 
-2. **Start the desktop agent** (in another terminal)
-   ```bash
-   cd agent
-   pip install -r requirements.txt
-   python agent.py --server ws://localhost:8080 --room DEMO
-   ```
-   > macOS: grant **Accessibility** permission to your terminal under
-   > System Settings → Privacy & Security → Accessibility, or the paste
-   > keystroke is silently ignored.
+Run it once with your pairing code. From then on, **every message you send is instantly on that computer's clipboard** — so you can blindly press **⌘/Ctrl-V** anywhere with full confidence. Where the OS allows, it also auto-pastes into the active window.
 
-3. **Open the phone app.** On your phone's browser go to
-   `http://<your-computer-ip>:8080` (find the IP with `ipconfig getifaddr en0`
-   on macOS, `hostname -I` on Linux). Enter the same code: `DEMO`.
+## Dictation
 
-4. Put your cursor anywhere on the computer (a text field, an editor),
-   then on the phone **type + Send** or **hold the mic and speak**.
-   The words appear at the cursor.
+- **iPhone:** use your keyboard's 🎤 — it's on-device, free, and excellent. (Apple doesn't expose the in-app mic to websites, so this is the best path on iOS.)
+- **Android:** the in-app 🎤 button works — tap to start, tap to stop, edit, then Send.
+- **Anywhere:** the text box always works.
 
-## Hosting the relay for free (use it from anywhere)
+## Self-host the relay
 
-The relay is a single stateless Node process — deploy it to any host that
-supports WebSockets:
+The relay is a single stateless Node process — no database, no env vars (just `PORT` if you want to override). Deploy it to anything that supports WebSockets:
 
-- **Render / Railway / Fly.io**: point at `server/`, build `npm install`,
-  start `npm start`. They provide HTTPS, so the phone gets `wss://`
-  automatically and the mic works (browsers require HTTPS for getUserMedia).
-- Then phone → `https://your-app.onrender.com`, agent →
-  `python agent.py --server wss://your-app.onrender.com --room ABCD`.
+```bash
+cd server
+npm install
+npm start        # http://localhost:8080
+```
 
-No database, no env vars required. `PORT` is read from the environment if set.
+One-click deploy to Render's free tier:
 
-## Delivery modes (desktop agent)
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/alokflows/yap)
 
-- `--mode paste` (default): clipboard + Cmd/Ctrl+V. Fast, Unicode-safe,
-  restores your previous clipboard afterward.
-- `--mode type`: simulates keystrokes. Use it in apps that block paste.
+A GitHub Action (`.github/workflows/keepalive.yml`) pings the deployment every ~12 minutes so the free tier never sleeps. Set the repo variable `RENDER_URL` to your URL after deploying.
+
+## Repository layout
+
+| Path | What it is |
+|------|------------|
+| `server/server.js` | Relay: serves the web app, relays text over `/ws`, exposes `/poll` for the helpers |
+| `server/public/index.html` | The entire phone/computer web app (one file, no build step) |
+| `server/public/dl/` | The zero-install desktop helpers (macOS / Windows / Linux) |
+| `agent/agent.py` | Optional advanced Python agent (clipboard-paste / keystroke modes) |
 
 ## Security notes
 
-- The pairing code is the only access control. Use a non-obvious code
-  (e.g. `K7QF`) so a stranger can't guess your room and paste into your PC.
-- The relay never writes anything to disk; rooms live in memory only.
-- For production, run the relay behind HTTPS/WSS and consider rotating codes.
+- The **pairing code is the only access control** — use a non-obvious one so nobody can guess your room.
+- The relay **never writes to disk**; rooms and history live in memory only and are evicted after 12h idle.
+- Always run the relay behind **HTTPS/WSS** (Render does this for you).
 
-## Upgrading transcription (optional, needs a key)
-
-The phone currently transcribes with the free browser engine. To use a
-cloud engine for higher accuracy, record audio on the phone and POST it to a
-transcription endpoint, then send the returned text over the same WebSocket.
-Good options: OpenAI Whisper API, Deepgram, AssemblyAI. This is the only part
-that would require an API key, and it's intentionally not wired up yet to keep
-setup at zero.
-
-## Roadmap ideas
+## Roadmap
 
 - PWA install (add-to-home-screen) + offline shell
-- QR code on the agent terminal that opens the phone app pre-paired
-- Per-message "type vs paste" toggle in the phone UI
-- Optional end-to-end encryption of the relayed text
+- QR code that opens the phone app pre-paired
+- Optional end-to-end encryption of relayed text
+
+---
+
+<div align="center">
+<sub>Built to be portable: open a link, share a code, paste anywhere.</sub>
+</div>
