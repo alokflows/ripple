@@ -48,11 +48,14 @@ const onSmile = (u, v) => {
 };
 
 // Art is defined in a unit square. Returns [r,g,b,a] (a in 0..1) or null.
-// Body (rounded rect) and tail (triangle) overlap along the body's straight
-// bottom edge, so they fuse into one connected speech bubble — no seam.
+// The tail is a thick round-capped stroke from inside the body down toward the
+// left corner: its start is hidden in the body so the two fuse seamlessly, and
+// its rounded cap gives a soft, blunt tip with no sharp point. Same segment +
+// radius is stroked in icon.svg, so favicon and PNGs stay identical.
+const TAIL = { ax: 0.4023, ay: 0.5840, bx: 0.3164, by: 0.7715, r: 0.0488 };
 function artColor(u, v) {
   const bubble = inRR(u, v, 0.1797, 0.1992, 0.6406, 0.4395, 0.1504)
-    || inTri(u, v, 0.3418, 0.6387, 0.4785, 0.6387, 0.2930, 0.8301);
+    || distSeg(u, v, TAIL.ax, TAIL.ay, TAIL.bx, TAIL.by) <= TAIL.r;
   if (!bubble) return null;
   return onSmile(u, v) ? [...CLAY, 1] : [...PAPER, 1];
 }
