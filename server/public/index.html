@@ -180,7 +180,7 @@
       background: var(--bg-elev); border: 1px solid var(--hairline); border-radius: var(--radius);
       box-shadow: var(--shadow-sm);
     }
-    .pair .field { flex: 1; min-width: 0; }
+    .pair .field { flex: 1; min-width: 0; text-align: center; }
     .pair label { font-size: 0.66rem; color: var(--ink-faint); text-transform: uppercase; letter-spacing: 0.09em; font-weight: 600; }
     .pair input {
       flex: 1; min-width: 0; background: transparent; border: none; color: var(--ink);
@@ -209,24 +209,40 @@
     .panel { flex: 1; display: flex; flex-direction: column; min-height: 0; }
     .hidden { display: none !important; }
 
-    /* ---- Room bar (members + host lock) --------------------------------- */
-    .room-bar { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; padding: 2px 2px 14px; }
-    .members { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; flex: 1; min-width: 0; }
-    .member {
-      display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; border-radius: 999px;
-      background: var(--surface); border: 1px solid var(--hairline-2);
-      font-size: 0.74rem; font-weight: 500; color: var(--ink-soft); white-space: nowrap;
+    /* ---- Devices (full-width bars + host lock) -------------------------- */
+    .devices-head { display: flex; align-items: baseline; gap: 8px; padding: 2px 2px 12px; }
+    .devices-head h2 { font-size: 0.95rem; font-weight: 650; margin: 0; }
+    .devices-empty { color: var(--ink-faint); font-size: 0.9rem; text-align: center; padding: 44px 20px; }
+    .room-bar { display: flex; flex-direction: column; gap: 9px; padding: 0 0 14px; }
+    .members { display: flex; flex-direction: column; gap: 9px; width: 100%; }
+    .device-bar {
+      display: flex; align-items: center; gap: 12px; width: 100%; padding: 12px 14px;
+      border-radius: var(--radius); background: var(--bg-elev);
+      border: 1px solid var(--hairline); box-shadow: var(--shadow-sm);
     }
-    .member svg { width: 13px; height: 13px; opacity: 0.8; }
-    .member.me { color: var(--ink); border-color: var(--hairline); }
-    .member .host-tag { color: var(--accent); font-weight: 600; }
+    .device-bar.me { border-color: var(--accent); }
+    .device-os { flex-shrink: 0; color: var(--ink-soft); display: grid; place-items: center; }
+    .device-os svg { width: 21px; height: 21px; }
+    .device-info { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+    .device-name { font-size: 0.92rem; font-weight: 600; color: var(--ink); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .device-sub { font-size: 0.72rem; color: var(--ink-faint); }
+    .device-sub .host { color: var(--accent); font-weight: 600; }
+    .device-remove {
+      flex-shrink: 0; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--hairline);
+      background: transparent; color: var(--ink-faint); cursor: pointer; display: grid; place-items: center;
+      transition: color 90ms var(--ease), border-color 90ms var(--ease), transform 120ms var(--ease);
+    }
+    .device-remove:hover { color: var(--bad); border-color: var(--bad); }
+    .device-remove:active { transform: scale(0.92); }
+    .device-remove svg { width: 16px; height: 16px; }
     .invite { display: inline-flex; align-items: center; gap: 6px; }
     .invite svg { width: 14px; height: 14px; }
     .invite:hover { color: var(--accent); border-color: var(--accent); }
+    .room-bar .toggle { align-self: flex-start; }
     .room-bar .toggle .track { width: 36px; height: 22px; }
     .room-bar .toggle .thumb { width: 16px; height: 16px; }
     .room-bar .toggle input:checked + .track .thumb { transform: translateX(14px); }
-    .locked-note { margin-left: auto; font-size: 0.74rem; color: var(--ink-faint); font-weight: 500; }
+    .locked-note { font-size: 0.74rem; color: var(--ink-faint); font-weight: 500; }
 
     /* ---- Compose (Send) ------------------------------------------------- */
     .compose {
@@ -353,7 +369,7 @@
     /* ---- History / session feed ----------------------------------------- */
     .session-bar { display: flex; align-items: center; gap: 10px; padding: 2px 2px 10px; }
     .session-bar h2 { font-size: 0.95rem; font-weight: 620; margin: 0; letter-spacing: -0.01em; }
-    .session-bar .count { color: var(--ink-faint); font-weight: 500; font-size: 0.85rem; }
+    .session-bar .count, .devices-head .count { color: var(--ink-faint); font-weight: 500; font-size: 0.85rem; }
     .session-bar .spacer { flex: 1; }
     .ghost-btn {
       padding: 7px 13px; border-radius: 999px; border: 1px solid var(--hairline); cursor: pointer;
@@ -436,7 +452,6 @@
       <button id="tabSend" role="tab" aria-selected="true">Send</button>
       <button id="tabReceive" role="tab" aria-selected="false">Receive</button>
       <button id="tabDevices" role="tab" aria-selected="false">Devices</button>
-      <button id="tabHistory" role="tab" aria-selected="false">History</button>
     </div>
 
     <!-- Pairing: Create / Join, then a locked code with Copy + Change -->
@@ -485,20 +500,8 @@
       </div>
     </section>
 
-    <!-- RECEIVE -->
+    <!-- RECEIVE — cursor box · latest + auto-copy · session history -->
     <section class="panel hidden" id="panelReceive" aria-label="Receive">
-      <div class="latest">
-        <span class="latest-label">Latest message</span>
-        <p class="latest-text empty" id="latestText">Waiting for messages…</p>
-        <div class="row">
-          <button class="copy-btn" id="copyLatest" type="button">Copy</button>
-          <label class="toggle" title="Copy every new message to the clipboard automatically">
-            <input type="checkbox" id="autoCopy" />
-            <span class="track"><span class="thumb"></span></span>
-            <span class="toggle-label">Auto-copy</span>
-          </label>
-        </div>
-      </div>
       <div class="paste-setup">
         <div class="ps-head">
           <div>
@@ -514,7 +517,7 @@
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1-.1 0-2-.8-2-2.9zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.8-.4 2.3-1.1z"/></svg>
               macOS<span class="os-sub">Download</span>
             </a>
-            <a class="dl-btn" id="dlWin" href="/dl/yap-windows.bat" download>
+            <a class="dl-btn" id="dlWin" href="/dl/yap-windows.ps1" download="yap-windows.ps1">
               <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.4 10.4 4.3v7.2H3zM11.3 4.2 21 2.8v8.7h-9.7zM3 12.5h7.4v7.2L3 18.6zM11.3 12.5H21v8.7l-9.7-1.4z"/></svg>
               Windows<span class="os-sub">Download</span>
             </a>
@@ -525,16 +528,39 @@
           </div>
           <ol class="ps-steps">
             <li>Click your computer’s button — the helper downloads with <b>your code already set</b>.</li>
-            <li>Open it. Windows tucks a small Yap icon in your tray; Mac/Linux open a little window.</li>
+            <li>Open it (Windows: right-click → <b>Run with PowerShell</b>). A small Yap icon sits in your tray; Mac/Linux open a little window.</li>
             <li>Send from your phone → it pastes at your cursor (or press <b>⌘/Ctrl-V</b>).</li>
           </ol>
         </div>
       </div>
+
+      <div class="latest">
+        <span class="latest-label">Latest message</span>
+        <p class="latest-text empty" id="latestText">Waiting for messages…</p>
+        <div class="row">
+          <button class="copy-btn" id="copyLatest" type="button">Copy</button>
+          <label class="toggle" title="Copy every new message to the clipboard automatically">
+            <input type="checkbox" id="autoCopy" />
+            <span class="track"><span class="thumb"></span></span>
+            <span class="toggle-label">Auto-copy</span>
+          </label>
+        </div>
+      </div>
+
+      <div class="session-bar">
+        <h2>History <span class="count" id="histCount">0</span></h2>
+        <span class="spacer"></span>
+        <button class="ghost-btn" id="copyAll" type="button">Copy all</button>
+        <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
+      </div>
+      <ul class="feed" id="feed" aria-live="polite"></ul>
     </section>
 
     <!-- DEVICES -->
     <section class="panel hidden" id="panelDevices" aria-label="Devices">
-      <!-- who's connected + host's "Allow others" lock -->
+      <div class="devices-head hidden" id="devicesHead">
+        <h2>Devices <span class="count" id="deviceCount">0</span></h2>
+      </div>
       <div class="room-bar hidden" id="roomBar">
         <div class="members" id="members"></div>
         <label class="toggle host-only hidden" id="allowWrap" title="Let new devices join this code. Turn off to lock the room to the devices already in it.">
@@ -544,18 +570,7 @@
         </label>
         <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
       </div>
-
-    </section>
-
-    <!-- HISTORY -->
-    <section class="panel hidden" id="panelHistory" aria-label="Session history">
-      <div class="session-bar">
-        <h2>Session <span class="count" id="histCount">0</span></h2>
-        <span class="spacer"></span>
-        <button class="ghost-btn" id="copyAll" type="button">Copy all</button>
-        <button class="ghost-btn danger" id="clearSession" type="button">Clear</button>
-      </div>
-      <ul class="feed" id="feed" aria-live="polite"></ul>
+      <div class="devices-empty" id="devicesEmpty">Connect with a code to see the devices on it here.</div>
     </section>
   </main>
 
@@ -570,17 +585,19 @@
       createBtn: $('createBtn'), joinBtn: $('joinBtn'), joinGo: $('joinGo'), joinBack: $('joinBack'),
       codeDisplay: $('codeDisplay'), changeBtn: $('changeBtn'),
       text: $('text'), interim: $('interim'), mic: $('mic'), micHint: $('micHint'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
-      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'), tabHistory: $('tabHistory'),
-      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'), panelHistory: $('panelHistory'),
+      tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'),
+      panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
       pasteToggle: $('pasteToggle'), pasteBody: $('pasteBody'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
       feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
       roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'), inviteBtn: $('inviteBtn'),
+      devicesHead: $('devicesHead'), deviceCount: $('deviceCount'), devicesEmpty: $('devicesEmpty'),
     };
 
-    const KEYS = { room: 'yap.room', mode: 'yap.mode', history: 'yap.history', autocopy: 'yap.autocopy', theme: 'yap.theme', did: 'yap.did' };
+    const KEYS = { room: 'yap.room', mode: 'yap.mode', autocopy: 'yap.autocopy', theme: 'yap.theme', did: 'yap.did' };
     const MAX_HISTORY = 300;
+    const histKey = (code) => 'yap.hist.' + code;
 
     // Stable per-device id so this device can always rejoin its own room — even
     // after the host locks it. Random, local-only, never leaves as anything but
@@ -619,13 +636,31 @@
     let role = localStorage.getItem(KEYS.mode) === 'receive' ? 'desktop' : 'phone';
     let peers = 0; // other devices on this code
 
-    // ---- session history (persisted; survives disconnect / refresh) -------
-    let history = loadHistory();
-    const seenIds = new Set(history.map((e) => e.id).filter(Boolean));
-    function loadHistory() { try { return JSON.parse(localStorage.getItem(KEYS.history)) || []; } catch { return []; } }
+    // ---- session history (per code; persisted; survives disconnect/refresh)
+    // Each pairing code keeps its own isolated history under its own key.
+    let histCode = null;
+    let history = [];
+    let seenIds = new Set();
+    function loadHistory(code) { try { return JSON.parse(localStorage.getItem(histKey(code))) || []; } catch { return []; } }
     function saveHistory() {
-      try { localStorage.setItem(KEYS.history, JSON.stringify(history.slice(-MAX_HISTORY))); }
-      catch { /* storage full — history stays in memory for this session */ }
+      if (!histCode) return;
+      // Quota-resilient: if storage is full, drop the OLDEST entries and retry so
+      // a big paragraph (the newest message) is never the thing silently lost.
+      let arr = history.slice(-MAX_HISTORY);
+      for (let i = 0; i < 12; i++) {
+        try { localStorage.setItem(histKey(histCode), JSON.stringify(arr)); return; }
+        catch { if (arr.length <= 1) return; arr = arr.slice(Math.ceil(arr.length / 2)); }
+      }
+    }
+    // Switch the in-memory history to a given code (or clear it when none).
+    function useHistory(code) {
+      histCode = code || null;
+      history = code ? loadHistory(code) : [];
+      seenIds = new Set(history.map((e) => e.id).filter(Boolean));
+      renderHistory();
+      const last = history[history.length - 1];
+      if (last) showLatest(last.text);
+      else { els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty'); }
     }
     let idSeq = Date.now();
     function addEntry(entry) {
@@ -723,7 +758,7 @@
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       if (peers > 0) {
         const what = role === 'phone' ? 'Computer' : 'Phone';
-        setStatus('paired', peers > 1 ? `${peers} devices connected` : `${what} connected`);
+        setStatus('paired', `${what} connected`); // device count lives in the Devices tab
       } else {
         setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
       }
@@ -744,6 +779,7 @@
       lockedOut = false; // a deliberate connect attempt clears any prior refusal
       localStorage.setItem(KEYS.room, room);
       els.room.value = room;
+      if (histCode !== room) useHistory(room); // load this code's own history
       setPairState('locked'); // show the locked code immediately while connecting
       if (els.psCode) updatePasteCode();
       // Don't churn: if already live on the same room+role, leave it alone.
@@ -768,7 +804,7 @@
       };
       sock.onclose = () => {
         if (sock._intentional || sock !== ws) return; // ignore intentional / stale closes
-        els.roomBar.classList.add('hidden');
+        clearDevicesUI();
         setStatus('offline', 'Reconnecting…'); // stay on the locked code; we auto-retry
         clearTimeout(reconnectTimer);
         reconnectTimer = setTimeout(() => connect(true), backoff);
@@ -812,13 +848,25 @@
         history = []; seenIds.clear(); saveHistory(); renderHistory();
         els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty');
         toast('Session cleared');
+      } else if (msg.type === 'kicked') {
+        // Host removed us: stop reconnecting, drop the code, go back Home.
+        lockedOut = true;
+        closeCurrent();
+        clearTimeout(reconnectTimer);
+        clearDevicesUI();
+        els.room.value = '';
+        localStorage.removeItem(KEYS.room);
+        useHistory(null);
+        setPairState('start');
+        setStatus('offline', 'Removed by host');
+        toast('Removed by the host', 'bad');
       } else if (msg.type === 'error') {
         if (msg.code === 'locked') {
           // Refused by a locked room. closeCurrent() makes the close intentional,
           // so set the standing UI here rather than relying on onclose.
           lockedOut = true;
           closeCurrent();
-          els.roomBar.classList.add('hidden');
+          clearDevicesUI();
           setPairState('start'); // let them try a different code
           setStatus('offline', 'Room locked');
         }
@@ -827,28 +875,77 @@
     }
 
     // ---- room members + host's "Allow others" lock ------------------------
-    const ROLE_ICON = {
-      phone: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="3" width="10" height="18" rx="2.5"/><path d="M11 18h2"/></svg>',
-      desktop: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
+    // Clean per-OS glyphs so each device reads at a glance — no raw ids.
+    const OS_ICON = {
+      Windows: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M3 5.4 10.4 4.3v7.2H3zM11.3 4.2 21 2.8v8.7h-9.7zM3 12.5h7.4v7.2L3 18.6zM11.3 12.5H21v8.7l-9.7-1.4z"/></svg>',
+      macOS: '<svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true"><path d="M16.4 12.8c0-2 1.6-3 1.7-3-1-1.4-2.4-1.6-2.9-1.6-1.2-.1-2.4.7-3 .7s-1.6-.7-2.6-.7c-1.3 0-2.6.8-3.2 2-1.4 2.4-.4 6 1 8 .6 1 1.4 2 2.4 2 1 0 1.3-.6 2.5-.6s1.5.6 2.5.6 1.7-.9 2.3-1.9c.7-1 1-2 1-2.1-.1 0-2-.8-2-2.9zM14.6 6.2c.5-.7.9-1.6.8-2.5-.8 0-1.7.5-2.3 1.2-.5.6-.9 1.5-.8 2.4.9.1 1.8-.4 2.3-1.1z"/></svg>',
+      iOS: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="7" y="2" width="10" height="20" rx="2.5"/><path d="M11 18h2"/></svg>',
+      Android: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="8" width="14" height="10" rx="2"/><path d="M7 8 6 4M17 8l1-4M9 13h.01M15 13h.01"/></svg>',
+      Linux: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3a3 3 0 0 1 6 0c0 2 1 3 2 6s1 6-1 9H8c-2-3-2-6-1-9s2-4 2-6z"/><path d="M10 9h.01M14 9h.01"/></svg>',
+      Device: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
     };
+    const TRASH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>';
+
+    function removeDevice(id) {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'kick', id }));
+    }
+    // Reset the Devices tab to its empty state (on disconnect / leave / removal).
+    function clearDevicesUI() {
+      els.roomBar.classList.add('hidden');
+      els.devicesHead.classList.add('hidden');
+      els.devicesEmpty.classList.remove('hidden');
+      els.members.innerHTML = '';
+      els.deviceCount.textContent = '0';
+    }
     function applyRoomState(msg) {
       const members = msg.members || [];
       const connected = ws && ws.readyState === WebSocket.OPEN && members.length > 0;
       els.roomBar.classList.toggle('hidden', !connected);
-      if (!connected) return;
-
-      els.members.innerHTML = '';
-      for (const m of members) {
-        const chip = document.createElement('span');
-        chip.className = 'member' + (m.id === myId ? ' me' : '');
-        const label = m.role === 'phone' ? 'Phone' : 'Computer';
-        const who = m.id === myId ? 'You' : label;
-        chip.innerHTML = (ROLE_ICON[m.role] || '') + '<span>' + who + '</span>'
-          + (m.isHost ? '<span class="host-tag">· host</span>' : '');
-        els.members.appendChild(chip);
-      }
+      els.devicesHead.classList.toggle('hidden', !connected);
+      els.devicesEmpty.classList.toggle('hidden', connected);
+      if (!connected) { els.deviceCount.textContent = '0'; return; }
 
       const iAmHost = !!msg.hostDid && msg.hostDid === myDid;
+      els.deviceCount.textContent = String(members.length);
+      els.members.innerHTML = '';
+      for (const m of members) {
+        const mine = m.id === myId;
+        const bar = document.createElement('div');
+        bar.className = 'device-bar' + (mine ? ' me' : '');
+
+        const os = document.createElement('span');
+        os.className = 'device-os';
+        os.innerHTML = OS_ICON[m.os] || OS_ICON.Device;
+
+        const info = document.createElement('div');
+        info.className = 'device-info';
+        const name = document.createElement('div');
+        name.className = 'device-name';
+        name.textContent = m.name || 'Device';
+        const sub = document.createElement('div');
+        sub.className = 'device-sub';
+        const bits = [m.role === 'phone' ? 'Phone' : 'Computer'];
+        if (mine) bits.push('this device');
+        sub.innerHTML = bits.join(' · ') + (m.isHost ? ' · <span class="host">host</span>' : '');
+        info.appendChild(name);
+        info.appendChild(sub);
+
+        bar.appendChild(os);
+        bar.appendChild(info);
+        // The host can remove any other device; never offer "remove yourself".
+        if (iAmHost && !mine) {
+          const rm = document.createElement('button');
+          rm.className = 'device-remove';
+          rm.type = 'button';
+          rm.title = 'Remove this device';
+          rm.setAttribute('aria-label', 'Remove ' + (m.name || 'device'));
+          rm.innerHTML = TRASH_ICON;
+          rm.addEventListener('click', () => removeDevice(m.id));
+          bar.appendChild(rm);
+        }
+        els.members.appendChild(bar);
+      }
+
       els.allowWrap.classList.toggle('hidden', !iAmHost);
       els.allowOthers.checked = msg.open !== false;
       // Non-host devices get a quiet "locked" note when others can't join.
@@ -875,20 +972,18 @@
       if (els.room.value) connect(); // reconnect with the new role
     }
     function setTab(tab) {
-      const map = { send: els.tabSend, receive: els.tabReceive, devices: els.tabDevices, history: els.tabHistory };
+      const map = { send: els.tabSend, receive: els.tabReceive, devices: els.tabDevices };
       for (const [k, btn] of Object.entries(map)) btn.setAttribute('aria-selected', String(k === tab));
       els.panelSend.classList.toggle('hidden', tab !== 'send');
       els.panelReceive.classList.toggle('hidden', tab !== 'receive');
       els.panelDevices.classList.toggle('hidden', tab !== 'devices');
-      els.panelHistory.classList.toggle('hidden', tab !== 'history');
       if (tab === 'send') setRole('phone');
       else if (tab === 'receive') setRole('desktop');
-      // devices / history keep the current role + connection
+      // devices keeps the current role + connection
     }
     els.tabSend.addEventListener('click', () => setTab('send'));
     els.tabReceive.addEventListener('click', () => setTab('receive'));
     els.tabDevices.addEventListener('click', () => setTab('devices'));
-    els.tabHistory.addEventListener('click', () => setTab('history'));
 
     // ---- pairing: Create / Join, then a locked code ----------------------
     function setPairState(state) {
@@ -898,7 +993,7 @@
       if (state === 'locked') els.codeDisplay.textContent = (els.room.value || '').toUpperCase();
       if (state === 'join') setTimeout(() => els.room.focus(), 0);
     }
-    function generateCode(len = 5) {
+    function generateCode(len = 6) {
       const cs = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789'; // no ambiguous 0/O/1/I
       let out = '';
       const arr = new Uint32Array(len);
@@ -925,7 +1020,7 @@
       clearTimeout(reconnectTimer);
       lockedOut = false;
       setStatus('offline', 'Not paired');
-      els.roomBar.classList.add('hidden');
+      clearDevicesUI();
       setPairState('start');
     });
 
@@ -977,7 +1072,7 @@
       const code = (els.room.value || '').trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
       const q = code ? '?code=' + encodeURIComponent(code) : '';
       els.dlMac.href = '/dl/yap-mac.command' + q;
-      els.dlWin.href = '/dl/yap-windows.bat' + q;
+      els.dlWin.href = '/dl/yap-windows.ps1' + q;
       els.dlLinux.href = '/dl/yap-linux.sh' + q;
       if (code) {
         els.psCode.innerHTML = 'Pre-filled for code <b>' + code + '</b> — just open the download.';
@@ -1045,11 +1140,20 @@
       recog.lang = navigator.language || 'en-US';
       recog.interimResults = true;
       recog.continuous = true;
+      // Commit each finalized result exactly once. Some engines (notably Android
+      // Chrome) re-fire results or replay them on auto-restart; tracking how many
+      // finals we've already taken stops the same phrase pasting 5–6 times.
+      let committed = 0;
+      recog.onstart = () => { committed = 0; };
       recog.onresult = (e) => {
         let interim = '';
-        for (let i = e.resultIndex; i < e.results.length; i++) {
-          const t = e.results[i][0].transcript;
-          if (e.results[i].isFinal) appendSpoken(t); else interim += t;
+        for (let i = 0; i < e.results.length; i++) {
+          const res = e.results[i];
+          if (res.isFinal) {
+            if (i >= committed) { appendSpoken(res[0].transcript); committed = i + 1; }
+          } else {
+            interim += res[0].transcript;
+          }
         }
         els.interim.textContent = interim;
         els.interim.classList.toggle('show', !!interim);

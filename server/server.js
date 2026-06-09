@@ -52,35 +52,16 @@ function sanitizeCode(raw) {
   return String(raw || '').toUpperCase().replace(/[^A-Z0-9]/g, '').slice(0, 12);
 }
 
-// Wraps a PowerShell script as a double-clickable .bat that launches it hidden.
-function windowsBat(ps, code) {
-  const enc = Buffer.from(ps, 'utf16le').toString('base64');
-  const codeLine = code
-    ? `REM Your pairing code (${code}) is already baked in — just double-click; no typing.`
-    : `REM You'll be asked once for your pairing code, then it runs invisibly.`;
-  return [
-    '@echo off',
-    'REM Yap helper for Windows. Double-click to run.',
-    'REM',
-    'REM It runs INVISIBLY in the background — there is NO window. A small Yap icon',
-    'REM appears in your system tray (bottom-right, near the clock): right-click it',
-    'REM to change the code or choose "Quit Yap" to stop it.',
-    'REM',
-    codeLine,
-    'REM',
-    'REM From then on, every message you send from the phone is copied to this PC\'s',
-    'REM clipboard and pasted into the active window automatically.',
-    `start "" /b powershell -NoProfile -ExecutionPolicy Bypass -Sta -WindowStyle Hidden -EncodedCommand ${enc}`,
-    'exit /b',
-    '',
-  ].join('\r\n');
-}
-
+// The Windows helper ships as a plain, readable PowerShell script — no hidden
+// window, no base64-encoded command, no execution-policy bypass spawned from a
+// .bat. Those are exactly the behaviours Symantec's SONAR flags as a suspicious
+// launch. The user right-clicks it and chooses "Run with PowerShell"; it then
+// minimises to a tray icon and auto-pastes, same as before.
 const HELPERS = {
-  '/dl/yap-windows.bat': {
+  '/dl/yap-windows.ps1': {
     template: 'yap-windows.ps1',
-    type: 'application/octet-stream',
-    build: (tpl, code) => windowsBat(tpl.replace('__CODE__', code), code),
+    type: 'text/plain; charset=utf-8',
+    build: (tpl, code) => tpl.replace('__CODE__', code),
   },
   '/dl/yap-mac.command': {
     template: 'yap-mac.command',
@@ -268,6 +249,36 @@ function rememberDevice(sess, did) {
   }
 }
 
+// Turn a raw User-Agent into a clean, human-readable device name + OS. No
+// dependencies — just enough pattern matching to show "Windows · Chrome" or
+// "Android · Pixel 7" instead of an opaque device id.
+function parseDevice(ua) {
+  ua = String(ua || '');
+  let os = 'Device', name = 'Device';
+  if (/iPhone/i.test(ua)) { os = 'iOS'; name = 'iPhone'; }
+  else if (/iPad/i.test(ua)) { os = 'iOS'; name = 'iPad'; }
+  else if (/Android/i.test(ua)) {
+    os = 'Android';
+    const m = ua.match(/Android[^;]*;\s*([^;)]+?)(?:\s+Build|\))/i);
+    let model = m && m[1] ? m[1].trim() : '';
+    if (/^wv$/i.test(model) || model.length < 2) model = '';
+    name = model ? 'Android · ' + model : 'Android';
+  }
+  else if (/Windows NT/i.test(ua)) { os = 'Windows'; name = 'Windows'; }
+  else if (/Macintosh|Mac OS X/i.test(ua)) { os = 'macOS'; name = 'Mac'; }
+  else if (/Linux/i.test(ua)) { os = 'Linux'; name = 'Linux'; }
+  if (os === 'Windows' || os === 'macOS' || os === 'Linux') {
+    let br = '';
+    if (/Edg\//i.test(ua)) br = 'Edge';
+    else if (/OPR\//i.test(ua)) br = 'Opera';
+    else if (/Firefox\//i.test(ua)) br = 'Firefox';
+    else if (/Chrome\//i.test(ua)) br = 'Chrome';
+    else if (/Safari\//i.test(ua)) br = 'Safari';
+    if (br) name += ' · ' + br;
+  }
+  return { os, name };
+}
+
 function getRoom(code) {
   let room = rooms.get(code);
   if (!room) {
@@ -287,7 +298,10 @@ function roomState(code) {
   const members = [];
   for (const m of room.values()) {
     if (m.role === 'phone') phones += 1; else if (m.role === 'desktop') desktops += 1;
-    members.push({ id: m.id, role: m.role, isHost: !!hostDid && m.did === hostDid });
+    members.push({
+      id: m.id, role: m.role, isHost: !!hostDid && m.did === hostDid,
+      name: m.device ? m.device.name : 'Device', os: m.device ? m.device.os : 'Device',
+    });
   }
   return { phones, desktops, members, open: sess ? sess.open : true, hostDid };
 }
@@ -352,7 +366,7 @@ wss.on('connection', (ws, req) => {
   ws.connId = 'c' + (++connSeq);
 
   const room = getRoom(code);
-  room.set(ws, { role, did, id: ws.connId, joinedAt: Date.now() });
+  room.set(ws, { role, did, id: ws.connId, joinedAt: Date.now(), device: parseDevice(req.headers['user-agent']) });
   console.log(`[ws] ${role} joined room ${code}`);
 
   send(ws, { type: 'joined', role, room: code, id: ws.connId, did, ...roomState(code) });
@@ -409,6 +423,23 @@ wss.on('connection', (ws, req) => {
         sess.open = !!msg.open;
         sess.updated = Date.now();
         notifyRoom(code);
+      }
+      return;
+    }
+
+    // Host removes a device by its connection id: tell it it's been removed,
+    // forget it so a locked room won't let it back, then close its socket.
+    if (msg.type === 'kick') {
+      if (!sess.hostDid || ws.did !== sess.hostDid) return;
+      const r = rooms.get(code);
+      if (!r) return;
+      for (const [peer, meta] of r) {
+        if (meta.id === msg.id && peer !== ws) {
+          if (meta.did) sess.knownDids.delete(meta.did);
+          send(peer, { type: 'kicked' });
+          try { peer.close(); } catch { /* already closing */ }
+          break;
+        }
       }
       return;
     }
