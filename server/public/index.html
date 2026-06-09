@@ -110,12 +110,8 @@
       gap: 12px; padding: 20px 22px 4px; width: 100%; max-width: 580px; margin: 0 auto;
     }
     .brand { display: flex; align-items: center; gap: 11px; min-width: 0; }
-    .brand .mark {
-      width: 30px; height: 30px; flex-shrink: 0; border-radius: 9px;
-      background: var(--accent); color: var(--accent-ink);
-      display: grid; place-items: center; box-shadow: var(--shadow-sm);
-    }
-    .brand .mark svg { width: 18px; height: 18px; }
+    .brand .mark { width: 30px; height: 30px; flex-shrink: 0; }
+    .brand .mark img { width: 100%; height: 100%; display: block; filter: drop-shadow(var(--shadow-sm)); }
     .brand h1 { font-size: 1.2rem; letter-spacing: -0.025em; margin: 0; font-weight: 640; }
 
     .header-actions { display: flex; align-items: center; gap: 10px; }
@@ -414,11 +410,7 @@
   <header>
     <div class="brand">
       <span class="mark" aria-hidden="true">
-        <!-- minimal speech bubble with a smile -->
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-          <path d="M4 6.5A2.5 2.5 0 0 1 6.5 4h11A2.5 2.5 0 0 1 20 6.5v7a2.5 2.5 0 0 1-2.5 2.5H9l-4 4v-4H6.5A2.5 2.5 0 0 1 4 13.5z" fill="currentColor" stroke="none"/>
-          <path d="M9 9.5c1 1.4 5 1.4 6 0" stroke="var(--accent-ink)"/>
-        </svg>
+        <img src="/icon.svg" alt="" />
       </span>
       <h1>Yap</h1>
     </div>

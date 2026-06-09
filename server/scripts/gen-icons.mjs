@@ -26,17 +26,35 @@ const inTri = (px, py, ax, ay, bx, by, cx, cy) => {
   return !(neg && pos);
 };
 
+// The smile is one cubic bezier, sampled to a polyline. The SAME curve is
+// stroked in icon.svg, so the favicon and these PNGs are pixel-for-pixel the
+// same mark. Control points sit below the endpoints, so it always bows down.
+const SMX = [0.3906, 0.4590, 0.5410, 0.6094];
+const SMY = [0.4141, 0.5020, 0.5020, 0.4141];
+const bez = (t, p) => { const m = 1 - t; return m*m*m*p[0] + 3*m*m*t*p[1] + 3*m*t*t*p[2] + t*t*t*p[3]; };
+const SMILE = Array.from({ length: 41 }, (_, i) => [bez(i / 40, SMX), bez(i / 40, SMY)]);
+const SMILE_HALF = 0.0273; // half of the 28/512 stroke width
+const distSeg = (px, py, ax, ay, bx, by) => {
+  const dx = bx - ax, dy = by - ay, l2 = dx * dx + dy * dy;
+  let t = l2 ? ((px - ax) * dx + (py - ay) * dy) / l2 : 0;
+  t = Math.max(0, Math.min(1, t));
+  return Math.hypot(px - (ax + t * dx), py - (ay + t * dy));
+};
+const onSmile = (u, v) => {
+  for (let i = 0; i < SMILE.length - 1; i++) {
+    if (distSeg(u, v, SMILE[i][0], SMILE[i][1], SMILE[i + 1][0], SMILE[i + 1][1]) <= SMILE_HALF) return true;
+  }
+  return false;
+};
+
 // Art is defined in a unit square. Returns [r,g,b,a] (a in 0..1) or null.
+// Body (rounded rect) and tail (triangle) overlap along the body's straight
+// bottom edge, so they fuse into one connected speech bubble — no seam.
 function artColor(u, v) {
-  // speech bubble body + downward tail
-  const bubble = inRR(u, v, 0.16, 0.17, 0.68, 0.46, 0.17)
-    || inTri(u, v, 0.30, 0.60, 0.205, 0.82, 0.46, 0.60);
+  const bubble = inRR(u, v, 0.1797, 0.1992, 0.6406, 0.4395, 0.1504)
+    || inTri(u, v, 0.3418, 0.6387, 0.4785, 0.6387, 0.2930, 0.8301);
   if (!bubble) return null;
-  // smile: lower band of a circle
-  const dx = u - 0.50, dy = v - 0.305;
-  const dist = Math.hypot(dx, dy);
-  const onArc = Math.abs(dist - 0.165) <= 0.042 && v > 0.34 && u > 0.30 && u < 0.70;
-  return onArc ? [...CLAY, 1] : [...PAPER, 1];
+  return onSmile(u, v) ? [...CLAY, 1] : [...PAPER, 1];
 }
 
 function render(N, { maskable }) {
