@@ -498,6 +498,22 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // Host destroys the code: wipe its notes, disconnect every device, and free
+    // the code immediately (instead of waiting for the 12h idle eviction). Only
+    // the host may do it; the code can be created again afterwards.
+    if (msg.type === 'destroy') {
+      if (!sess.hostDid || ws.did !== sess.hostDid) return;
+      broadcast(code, { type: 'destroyed' });
+      const r = rooms.get(code);
+      if (r) {
+        for (const peer of [...r.keys()]) { try { peer.close(); } catch { /* already closing */ } }
+        rooms.delete(code);
+      }
+      sessions.delete(code);
+      console.log(`[ws] host destroyed room ${code}`);
+      return;
+    }
+
     if (msg.type === 'ping') {
       send(ws, { type: 'pong' });
       return;

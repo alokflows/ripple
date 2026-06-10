@@ -566,6 +566,7 @@
           <span class="toggle-label">Allow others</span>
         </label>
         <span class="locked-note hidden" id="lockedNote">🔒 Locked by host</span>
+        <button type="button" class="ghost-btn danger host-only hidden" id="destroyBtn" title="Wipe this code: disconnect everyone and free the code right away.">Destroy code</button>
       </div>
       <div class="room-bar hidden" id="roomBar">
         <div class="members" id="members"></div>
@@ -621,7 +622,7 @@
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
       feed: $('feed'), histCount: $('histCount'), copyAll: $('copyAll'), clearSession: $('clearSession'),
       roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'), inviteBtn: $('inviteBtn'),
-      devicesHead: $('devicesHead'), deviceCount: $('deviceCount'), devicesEmpty: $('devicesEmpty'),
+      devicesHead: $('devicesHead'), deviceCount: $('deviceCount'), devicesEmpty: $('devicesEmpty'), destroyBtn: $('destroyBtn'),
     };
 
     const KEYS = { room: 'yap.room', mode: 'yap.mode', autocopy: 'yap.autocopy', theme: 'yap.theme', did: 'yap.did' };
@@ -892,6 +893,18 @@
         setPairState('start');
         setStatus('offline', 'Removed by host');
         toast('Removed by the host', 'bad');
+      } else if (msg.type === 'destroyed') {
+        // Host wiped the code: same gentle reset as a kick, for everyone.
+        lockedOut = true;
+        closeCurrent();
+        clearTimeout(reconnectTimer);
+        clearDevicesUI();
+        els.room.value = '';
+        localStorage.removeItem(KEYS.room);
+        useHistory(null);
+        setPairState('start');
+        setStatus('offline', 'Code destroyed');
+        toast('Code destroyed', 'bad');
       } else if (msg.type === 'error') {
         if (msg.code === 'locked') {
           // Refused by a locked room. closeCurrent() makes the close intentional,
@@ -979,6 +992,7 @@
       }
 
       els.allowWrap.classList.toggle('hidden', !iAmHost);
+      els.destroyBtn.classList.toggle('hidden', !iAmHost);
       els.allowOthers.checked = msg.open !== false;
       // Non-host devices get a quiet "locked" note when others can't join.
       els.lockedNote.classList.toggle('hidden', iAmHost || msg.open !== false);
@@ -1097,6 +1111,13 @@
         ws.send(JSON.stringify({ type: 'setOpen', open: els.allowOthers.checked }));
         toast(els.allowOthers.checked ? 'Room open — others can join' : 'Room locked to current devices');
       }
+    });
+
+    // Host destroys the code: confirm, then wipe it for everyone.
+    els.destroyBtn.addEventListener('click', () => {
+      if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      if (!confirm('Destroy this code? Everyone is disconnected and the code is freed. This cannot be undone.')) return;
+      ws.send(JSON.stringify({ type: 'destroy' }));
     });
 
     // ---- paste-at-cursor modal (opened from the header icon) -------------
