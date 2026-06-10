@@ -55,12 +55,20 @@ else
 fi
 
 # --- the pairing code (baked into the download; asked once if missing) ----------
-CODE="__CODE__"
-CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
+# Codes are 3-12 characters. We cap at 12 to match the server: a longer string
+# forms an invalid /poll URL, which used to make the server hand back its own
+# web page (you'd see CSS scroll past as "copied ..."). Capping prevents that.
+sanitize_code() { printf '%s' "$1" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9'; }
+
+CODE=$(sanitize_code "__CODE__")
 if [ ${#CODE} -lt 3 ]; then
   printf "Enter the pairing code shown in the Yap phone app: "
-  read -r CODE
-  CODE=$(printf '%s' "$CODE" | tr '[:lower:]' '[:upper:]' | tr -cd 'A-Z0-9')
+  read -r RAW
+  CODE=$(sanitize_code "$RAW")
+fi
+if [ ${#CODE} -gt 12 ]; then
+  echo "Note: codes are at most 12 characters — using the first 12 (\"${CODE:0:12}\")."
+  CODE=${CODE:0:12}
 fi
 if [ ${#CODE} -lt 3 ]; then echo "That code looks too short. Try again."; exit 1; fi
 

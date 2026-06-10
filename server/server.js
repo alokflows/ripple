@@ -162,6 +162,17 @@ const server = http.createServer(async (req, res) => {
       return;
     }
 
+    // A /poll request that didn't match the strict pattern above (e.g. an
+    // over-long or malformed code) must NOT fall through to the static handler,
+    // which would hand back index.html — the helper then "pastes" the page's
+    // own HTML/CSS line by line. Return empty, and log it so it's visible.
+    if (urlPath.startsWith('/poll/')) {
+      console.warn(`poll: rejected malformed request "${urlPath}" (code must be 3-12 chars [A-Za-z0-9])`);
+      res.writeHead(400, { 'Content-Type': 'text/plain', 'Access-Control-Allow-Origin': '*' });
+      res.end('');
+      return;
+    }
+
     // Desktop helper downloads, with the pairing code baked in when supplied:
     // GET /dl/yap-windows.bat?code=ABCDE  -> helper pre-set to that code.
     const helper = HELPERS[urlPath];
