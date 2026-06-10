@@ -786,10 +786,11 @@
     function refreshStatusLabel() {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
       if (peers > 0) {
-        const what = role === 'phone' ? 'Computer' : 'Phone';
-        setStatus('paired', `${what} connected`); // device count lives in the Devices tab
+        // Honest: any other device on the code counts. Roles follow the open tab
+        // (Send=phone, Receive=desktop), so we don't claim a specific other side.
+        setStatus('paired', peers === 1 ? 'Connected' : `Connected · ${peers + 1} devices`);
       } else {
-        setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
+        setStatus('waiting', 'Waiting for another device…');
       }
     }
 
@@ -824,7 +825,7 @@
       sock.onopen = () => {
         if (sock !== ws) return;
         backoff = 500;
-        setStatus('waiting', role === 'phone' ? 'Waiting for computer…' : 'Waiting for phone…');
+        setStatus('waiting', 'Waiting for another device…');
       };
       sock.onmessage = (ev) => {
         if (sock !== ws) return;
@@ -858,7 +859,9 @@
     function handleMessage(msg) {
       if (msg.type === 'joined' || msg.type === 'presence') {
         if (msg.id) myId = msg.id;
-        peers = role === 'phone' ? (msg.desktops || 0) : (msg.phones || 0);
+        // Count every OTHER connection on this code, regardless of role, so two
+        // same-role devices (e.g. both on Send) still read as "Connected".
+        peers = Math.max(0, (msg.phones || 0) + (msg.desktops || 0) - 1);
         applyRoomState(msg);
         refreshStatusLabel();
       } else if (msg.type === 'history') {

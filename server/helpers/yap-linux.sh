@@ -87,14 +87,25 @@ fi
 echo "Leave this window open; Ctrl-C to stop."
 echo ""
 
-LAST=$(curl -fsS "$SERVER/poll/$CODE/0/text" 2>/dev/null | tail -1 | cut -f1)
+# Stable device id, so the host's room lock can recognise this helper: when the
+# host turns "Allow others" off, helpers seen while the room was open keep
+# working and unknown ones are refused. Stored once, reused every run.
+DID_FILE="${XDG_CONFIG_HOME:-$HOME/.config}/yap/did"
+DID=$(cat "$DID_FILE" 2>/dev/null | tr -cd 'A-Za-z0-9_-' | cut -c1-40)
+if [ -z "$DID" ]; then
+  DID=$( (cat /proc/sys/kernel/random/uuid 2>/dev/null) || date +%s%N )
+  DID=$(printf '%s' "$DID" | tr -cd 'A-Za-z0-9_-' | cut -c1-40)
+  mkdir -p "$(dirname "$DID_FILE")" 2>/dev/null && printf '%s' "$DID" > "$DID_FILE" 2>/dev/null
+fi
+
+LAST=$(curl -fsS "$SERVER/poll/$CODE/0/text?did=$DID" 2>/dev/null | tail -1 | cut -f1)
 [ -z "$LAST" ] && LAST=0
 
 # Long-poll: the server returns the instant a message arrives, so latency is the
 # network round-trip, not a poll interval. The short sleep only throttles
 # reconnects if the server is unreachable.
 while true; do
-  RESP=$(curl -fsS --max-time 35 "$SERVER/poll/$CODE/$LAST/text?wait=30" 2>/dev/null)
+  RESP=$(curl -fsS --max-time 35 "$SERVER/poll/$CODE/$LAST/text?wait=30&did=$DID" 2>/dev/null)
   if [ -n "$RESP" ]; then
     while IFS=$'\t' read -r ID B64; do
       [ -z "$ID" ] && continue

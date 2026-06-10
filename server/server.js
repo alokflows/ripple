@@ -127,6 +127,20 @@ const server = http.createServer(async (req, res) => {
       const wait = Math.min(Number(new URL(req.url, 'http://localhost').searchParams.get('wait')) || 0, 30);
 
       const headers = { 'Cache-Control': 'no-store', 'Access-Control-Allow-Origin': '*' };
+
+      // Room lock now covers the helper/poll path too (it was web-app only). A
+      // helper sends a stable ?did=; while the room is open we remember it, so
+      // once the host turns "Allow others" off, known helpers keep working and
+      // unknown ones are refused. Pure O(1) Set check — no extra round-trip.
+      const did = sanitizeDid(new URL(req.url, 'http://localhost').searchParams.get('did'));
+      const known = sessions.get(code);
+      if (known && !known.open && (!did || !known.knownDids.has(did))) {
+        res.writeHead(403, headers);
+        res.end(asText ? '' : JSON.stringify({ messages: [], locked: true }));
+        return;
+      }
+      if (known && known.open && did) rememberDevice(known, did);
+
       const respond = (msgs) => {
         if (asText) {
           const lines = msgs
