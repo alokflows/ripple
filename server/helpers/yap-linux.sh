@@ -81,6 +81,11 @@ echo ""
 echo "Connected to code $CODE. Send from your phone."
 if [ -n "$HAVE_PASTE" ]; then
   echo "Auto-paste is ON via $PASTE_TOOL — text drops straight at your cursor. Click where you want it."
+  if [ "$PASTE_TOOL" = "ydotool" ]; then
+    echo "If paste types stray characters (e.g. numbers) instead of your text, ydotool is"
+    echo "misbehaving on this setup. Install wtype and re-run — it switches over by itself:"
+    hint "wtype"
+  fi
 else
   echo "Text is copied here instantly — press Ctrl-V to paste."
   if [ -n "$PASTE_HINT" ]; then
