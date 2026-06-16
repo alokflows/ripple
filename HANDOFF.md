@@ -69,6 +69,8 @@ logic in `packages/core/`. Aspirational protocol in `docs/protocol.md`.
 | Short **status pill** ("0/1/2 devices") + width cap so it can't crowd the logo | `index.html` | — |
 | Text box caps height, scrolls internally, **soft gradient edges** (only while scrolling) | `index.html` | — |
 | **"Make host"** control transfer (crown in Devices list) | `server.js` + `index.html` | **2-client test**: 1st joiner is host; host can transfer; non-host cannot grab |
+| Join box now starts **empty** (no confusing pre-fill of your own old code) | `index.html` | logic reviewed |
+| **In-app QR scanner** (Scan button on join → camera → connect, never leaves site) | `index.html` + vendored `jsQR.js` | assets serve; **camera flow NOT testable in cloud — verify on a phone** |
 
 The QR auto-connect works because the app **already** auto-connects from
 `/?room=CODE` on load (`index.html`, the `urlRoom` logic).
