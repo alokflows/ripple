@@ -498,6 +498,25 @@ wss.on('connection', (ws, req) => {
       return;
     }
 
+    // Host hands control to another device by its connection id. Only the
+    // current host may do it, and the target must be a device in the room with
+    // a known id. hostDid is never evicted, so the new host keeps a locked room.
+    if (msg.type === 'setHost') {
+      if (!sess.hostDid || ws.did !== sess.hostDid) return;
+      const r = rooms.get(code);
+      if (!r) return;
+      for (const [, meta] of r) {
+        if (meta.id === msg.id && meta.did) {
+          sess.hostDid = meta.did;
+          sess.knownDids.add(meta.did);
+          sess.updated = Date.now();
+          notifyRoom(code);
+          break;
+        }
+      }
+      return;
+    }
+
     // Host destroys the code: wipe its notes, disconnect every device, and free
     // the code immediately (instead of waiting for the 12h idle eviction). Only
     // the host may do it; the code can be created again afterwards.

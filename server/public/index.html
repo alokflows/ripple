@@ -243,6 +243,14 @@
     .device-remove:hover { color: var(--bad); border-color: var(--bad); }
     .device-remove:active { transform: scale(0.92); }
     .device-remove svg { width: 16px; height: 16px; }
+    .device-promote {
+      flex-shrink: 0; width: 32px; height: 32px; border-radius: 9px; border: 1px solid var(--hairline);
+      background: transparent; color: var(--ink-faint); cursor: pointer; display: grid; place-items: center;
+      transition: color 90ms var(--ease), border-color 90ms var(--ease), transform 120ms var(--ease);
+    }
+    .device-promote:hover { color: var(--accent); border-color: var(--accent); }
+    .device-promote:active { transform: scale(0.92); }
+    .device-promote svg { width: 16px; height: 16px; }
     .invite { display: inline-flex; align-items: center; gap: 6px; }
     .invite svg { width: 14px; height: 14px; }
     .invite:hover { color: var(--accent); border-color: var(--accent); }
@@ -967,9 +975,14 @@
       Device: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="12" rx="2"/><path d="M8 20h8M12 16v4"/></svg>',
     };
     const TRASH_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 6h18M8 6V4a1 1 0 0 1 1-1h6a1 1 0 0 1 1 1v2M19 6l-1 14a1 1 0 0 1-1 1H7a1 1 0 0 1-1-1L5 6"/></svg>';
+    const CROWN_ICON = '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7l4 4 5-7 5 7 4-4-2 12H5L3 7z"/></svg>';
 
     function removeDevice(id) {
       if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'kick', id }));
+    }
+    // Hand host (control) to another device — the server checks we're the host.
+    function makeHost(id) {
+      if (ws && ws.readyState === WebSocket.OPEN) ws.send(JSON.stringify({ type: 'setHost', id }));
     }
     // Reset the Devices tab to its empty state (on disconnect / leave / removal).
     function clearDevicesUI() {
@@ -1014,8 +1027,19 @@
 
         bar.appendChild(os);
         bar.appendChild(info);
-        // The host can remove any other device; never offer "remove yourself".
+        // The host can hand control to, or remove, any other device.
+        // Never offer either action on yourself.
         if (iAmHost && !mine) {
+          if (!m.isHost) {
+            const mk = document.createElement('button');
+            mk.className = 'device-promote';
+            mk.type = 'button';
+            mk.title = 'Make host';
+            mk.setAttribute('aria-label', 'Make ' + (m.name || 'device') + ' the host');
+            mk.innerHTML = CROWN_ICON;
+            mk.addEventListener('click', () => makeHost(m.id));
+            bar.appendChild(mk);
+          }
           const rm = document.createElement('button');
           rm.className = 'device-remove';
           rm.type = 'button';
