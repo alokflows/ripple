@@ -1012,7 +1012,10 @@
         name.textContent = m.name || 'Device';
         const sub = document.createElement('div');
         sub.className = 'device-sub';
-        const bits = [m.role === 'phone' ? 'Phone' : 'Computer'];
+        // Read the device TYPE from its OS, not the old send/receive tab-role.
+        const kind = (m.os === 'iOS' || m.os === 'Android') ? 'Phone'
+          : (m.os && m.os !== 'Device') ? 'Computer' : 'Device';
+        const bits = [kind];
         if (mine) bits.push('this device');
         sub.innerHTML = bits.join(' · ') + (m.isHost ? ' · <span class="host">host</span>' : '');
         info.appendChild(name);
