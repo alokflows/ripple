@@ -71,6 +71,19 @@ logic in `packages/core/`. Aspirational protocol in `docs/protocol.md`.
 | **"Make host"** control transfer (crown in Devices list) | `server.js` + `index.html` | **2-client test**: 1st joiner is host; host can transfer; non-host cannot grab |
 | Join box now starts **empty** (no confusing pre-fill of your own old code) | `index.html` | logic reviewed |
 | **In-app QR scanner** (Scan button on join → camera → connect, never leaves site) | `index.html` + vendored `jsQR.js` | assets serve; **camera flow NOT testable in cloud — verify on a phone** |
+| **Connection no longer churns on tab switch**; server enforces **one socket per device id** | `server.js` + `index.html` | **WS test**: 3 conns from 2 devices → 2 members, 1 host. Killed the flicker / double-host / phantom devices |
+| Device rows labelled by **OS** (Phone vs Computer), not the old tab-role | `index.html` | logic reviewed |
+| **Send + Receive merged into one "Chat" screen** with left/right **message bubbles**, newest-at-bottom, auto-scroll. Tabs are now just **Chat / Devices** | `index.html` | renders; structure verified |
+| **Delivery ticks** on sent bubbles (single = sent, double accent = reached devices) + **"N devices"** in light gray | `index.html` | uses relay's real `ack.delivered` count |
+| **Long-press a message → action sheet** (Copy / Resend); quick tap still copies | `index.html` | delegated pointer handlers; verify gesture on a phone |
+| Dynamic **empty-chat hint** (waiting vs connected vs offline) + 44px tap targets | `index.html` | — |
+| "Destroy code" moved to a quiet spot at the bottom of Devices; light-theme borders darkened ~25% | `index.html` | — |
+
+NOTE: the UI is now a **single Chat screen** (not Send/Receive tabs) and there is
+no send/receive "role" anymore — every device sends and receives. The
+`?room=CODE` value sent to the relay is still the **raw code** (encryption not
+wired yet — Task A). A 🔒 "encrypted" badge was intentionally NOT added until
+encryption is real.
 
 The QR auto-connect works because the app **already** auto-connects from
 `/?room=CODE` on load (`index.html`, the `urlRoom` logic).

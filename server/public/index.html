@@ -299,7 +299,7 @@
     textarea:focus { outline: none; }
     textarea::placeholder { color: var(--ink-faint); }
     .mic {
-      position: relative; width: 42px; height: 42px; flex-shrink: 0; cursor: pointer;
+      position: relative; width: 44px; height: 44px; flex-shrink: 0; cursor: pointer;
       border-radius: 50%; border: none; color: var(--ink-soft); background: var(--surface);
       display: grid; place-items: center;
       transition: transform 120ms var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
@@ -317,7 +317,7 @@
     @keyframes ring  { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(1.4); opacity: 0; } }
     /* Send: a round paper-plane in the earthy accent; fades out when there's nothing to send. */
     .send {
-      flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+      flex-shrink: 0; width: 44px; height: 44px; border-radius: 50%; border: none; cursor: pointer;
       background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
       transition: transform 120ms var(--ease), opacity var(--dur) var(--ease), background var(--dur) var(--ease);
     }
@@ -386,6 +386,26 @@
       transform: translateY(8px) scale(0.98); transition: transform var(--dur) var(--ease);
     }
     .modal-overlay.show .modal-card { transform: none; }
+    /* Bottom action sheet (message Copy / Resend) — slides up from the edge. */
+    .sheet-overlay { align-items: flex-end; justify-content: center; padding: 12px; }
+    .sheet {
+      width: 100%; max-width: 460px; display: flex; flex-direction: column; gap: 8px;
+      transform: translateY(16px); transition: transform var(--dur) var(--ease);
+    }
+    .sheet-overlay.show .sheet { transform: none; }
+    .sheet-preview {
+      background: var(--surface); border: 1px solid var(--hairline); border-radius: 14px;
+      padding: 12px 14px; color: var(--ink-soft); font-size: 0.9rem; max-height: 30vh; overflow-y: auto;
+      white-space: pre-wrap; word-break: break-word;
+    }
+    .sheet-btn {
+      width: 100%; min-height: 50px; border-radius: 14px; border: 1px solid var(--hairline);
+      background: var(--bg-elev); color: var(--ink); font-size: 0.98rem; font-weight: 600; cursor: pointer;
+      transition: transform 120ms var(--ease), border-color 90ms var(--ease), background 90ms var(--ease);
+    }
+    .sheet-btn:hover { border-color: var(--ink-faint); }
+    .sheet-btn:active { transform: scale(0.98); }
+    .sheet-btn.cancel { color: var(--ink-soft); margin-top: 2px; }
     .modal-close {
       position: absolute; top: 12px; right: 12px; width: 32px; height: 32px; border-radius: 9px;
       border: 1px solid var(--hairline); background: var(--surface); color: var(--ink-soft);
@@ -438,9 +458,15 @@
     .feed li.tappable { cursor: pointer; transition: transform 90ms var(--ease), filter 90ms var(--ease); }
     .feed li.tappable:hover { filter: brightness(0.98); }
     .feed li.tappable:active { transform: scale(0.98); }
+    .feed li { -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .feed li .ft { color: var(--ink); font-size: 0.97rem; line-height: 1.4; word-break: break-word; white-space: pre-wrap; }
-    .feed li .meta { margin-top: 4px; font-size: 0.66rem; color: var(--ink-faint); }
-    .feed li.out .meta, .feed li.failed .meta { text-align: right; }
+    .feed li .meta { display: flex; align-items: center; gap: 5px; margin-top: 4px; font-size: 0.66rem; color: var(--ink-faint); }
+    .feed li.out .meta { justify-content: flex-end; }
+    /* WhatsApp-style ticks: grey when only sent, accent once it reached devices. */
+    .feed li .ticks { display: inline-flex; color: var(--ink-faint); }
+    .feed li .ticks.done { color: var(--accent-strong, var(--accent)); }
+    .feed li .ticks svg { width: 15px; height: 11px; }
+    .feed li .landed { color: var(--ink-faint); }
     @keyframes slideIn { from { opacity: 0; transform: translateY(6px); } }
 
     .toast {
@@ -639,6 +665,16 @@
     </div>
   </div>
 
+  <!-- Per-message actions: tap a bubble to copy; hold it to open this sheet. -->
+  <div class="modal-overlay sheet-overlay" id="msgMenu" role="dialog" aria-modal="true" aria-label="Message actions" hidden>
+    <div class="sheet">
+      <div class="sheet-preview" id="msgPreview"></div>
+      <button class="sheet-btn" id="msgCopy" type="button">Copy</button>
+      <button class="sheet-btn" id="msgResend" type="button">Resend</button>
+      <button class="sheet-btn cancel" id="msgCancel" type="button">Cancel</button>
+    </div>
+  </div>
+
   <div class="toast" id="toast" role="status" aria-live="assertive"></div>
 
   <!-- QR decoder (jsQR, Apache-2.0) — bundled locally; camera frames stay on
@@ -665,6 +701,7 @@
       pasteBtn: $('pasteBtn'), pasteModal: $('pasteModal'), pasteClose: $('pasteClose'), psCode: $('psCode'),
       dlMac: $('dlMac'), dlWin: $('dlWin'), dlLinux: $('dlLinux'),
       feed: $('feed'), histCount: $('histCount'), clearSession: $('clearSession'),
+      msgMenu: $('msgMenu'), msgPreview: $('msgPreview'), msgCopy: $('msgCopy'), msgResend: $('msgResend'), msgCancel: $('msgCancel'),
       roomBar: $('roomBar'), members: $('members'), allowWrap: $('allowWrap'), allowOthers: $('allowOthers'), lockedNote: $('lockedNote'), inviteBtn: $('inviteBtn'),
       qrBtn: $('qrBtn'), qrModal: $('qrModal'), qrClose: $('qrClose'), qrImg: $('qrImg'), qrCodeLabel: $('qrCodeLabel'),
       scanBtn: $('scanBtn'), scanModal: $('scanModal'), scanClose: $('scanClose'), scanVideo: $('scanVideo'), scanHint: $('scanHint'),
@@ -759,41 +796,116 @@
     function scrollFeedToEnd() {
       requestAnimationFrame(() => { els.feed.scrollTop = els.feed.scrollHeight; });
     }
+    // WhatsApp-style ticks: one check = sent, double check = it reached devices.
+    const TICK_ONE = '<svg viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M4 8l5 5 11-11"/></svg>';
+    const TICK_TWO = '<svg viewBox="0 0 24 16" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2 8l5 5 9-9"/><path d="M10 13l1.5 1.5L22 4"/></svg>';
+
+    // What the empty chat says depends on whether the other device is here yet.
+    function emptyHint() {
+      const live = ws && ws.readyState === WebSocket.OPEN;
+      if (!live) return 'Type below — your words will appear on your other device the moment it connects.';
+      if (peers > 0) return 'Connected. Type below and it lands on your other device instantly.';
+      return 'Waiting for your other device… open Yap there and enter this code (or scan the QR), then just type.';
+    }
     function renderHistory() {
       els.histCount.textContent = history.length;
       els.feed.innerHTML = '';
       if (!history.length) {
         const empty = document.createElement('div');
         empty.className = 'feed-empty';
-        empty.textContent = 'No messages yet. Type below and it lands on the other device — and anything sent to you shows up here.';
+        empty.textContent = emptyHint();
         els.feed.appendChild(empty);
         return;
       }
       // Oldest first, newest at the bottom — the universal chat order.
       for (let i = 0; i < history.length; i++) {
         const e = history[i];
-        const failed = e.dir === 'out' && e.delivered === false;
-        // Sent = right-aligned accent bubble; received = left-aligned. Tap to copy.
+        const out = e.dir === 'out';
+        const landed = out ? (e.delivered | 0) : 0;
+        // Sent = right-aligned accent bubble; received = left-aligned.
         const li = document.createElement('li');
-        li.className = 'bubble tappable ' + (failed ? 'failed' : e.dir);
-        li.title = 'Tap to copy';
+        li.className = 'bubble tappable ' + e.dir;
+        li.title = 'Tap to copy · hold for more';
+        li._entry = e; // for the feed's delegated tap / long-press handlers
 
         const ft = document.createElement('div');
         ft.className = 'ft';
         ft.textContent = e.text;
         const meta = document.createElement('div');
         meta.className = 'meta';
-        meta.textContent = fmtTime(e.t) + (failed ? ' · not delivered' : '');
+        const time = document.createElement('span');
+        time.textContent = fmtTime(e.t);
+        meta.appendChild(time);
+        if (out) {
+          // Ticks (themed) + how many devices it reached, in light gray.
+          const tick = document.createElement('span');
+          tick.className = 'ticks' + (landed > 0 ? ' done' : '');
+          tick.innerHTML = landed > 0 ? TICK_TWO : TICK_ONE;
+          meta.appendChild(tick);
+          const note = document.createElement('span');
+          note.className = 'landed';
+          note.textContent = landed > 0 ? `${landed} device${landed > 1 ? 's' : ''}` : 'not delivered yet';
+          meta.appendChild(note);
+        }
         li.appendChild(ft);
         li.appendChild(meta);
-
-        li.addEventListener('click', () => copyText(e.text).then((ok) => {
-          toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
-        }));
         els.feed.appendChild(li);
       }
       scrollFeedToEnd();
     }
+
+    // One set of handlers for the whole feed (fast, no per-message listeners):
+    // a quick tap copies; a press-and-hold (or right-click) opens the actions.
+    let pressTimer = null, pressLi = null, pressMoved = false, pressLong = false, pressX = 0, pressY = 0;
+    function entryOf(target) { const li = target.closest && target.closest('li.bubble'); return li && li._entry ? li : null; }
+    els.feed.addEventListener('pointerdown', (ev) => {
+      const li = entryOf(ev.target); if (!li) return;
+      pressLi = li; pressMoved = false; pressLong = false; pressX = ev.clientX; pressY = ev.clientY;
+      pressTimer = setTimeout(() => { pressLong = true; openMsgMenu(li._entry); }, 480);
+    });
+    els.feed.addEventListener('pointermove', (ev) => {
+      if (!pressLi) return;
+      if (Math.abs(ev.clientX - pressX) > 10 || Math.abs(ev.clientY - pressY) > 10) { pressMoved = true; clearTimeout(pressTimer); }
+    });
+    els.feed.addEventListener('pointerup', () => {
+      if (!pressLi) return;
+      clearTimeout(pressTimer);
+      if (!pressLong && !pressMoved) {
+        const e = pressLi._entry;
+        copyText(e.text).then((ok) => toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad'));
+      }
+      pressLi = null;
+    });
+    els.feed.addEventListener('pointercancel', () => { clearTimeout(pressTimer); pressLi = null; });
+    els.feed.addEventListener('contextmenu', (ev) => {
+      const li = entryOf(ev.target); if (!li) return;
+      ev.preventDefault(); clearTimeout(pressTimer); openMsgMenu(li._entry);
+    });
+
+    // ---- message action sheet (Copy / Resend) -----------------------------
+    let menuMsg = null;
+    function openMsgMenu(entry) {
+      menuMsg = entry;
+      els.msgPreview.textContent = entry.text;
+      els.msgMenu.hidden = false;
+      requestAnimationFrame(() => els.msgMenu.classList.add('show'));
+    }
+    function closeMsgMenu() {
+      els.msgMenu.classList.remove('show');
+      setTimeout(() => { els.msgMenu.hidden = true; menuMsg = null; }, 220);
+    }
+    els.msgCopy.addEventListener('click', () => {
+      if (menuMsg) copyText(menuMsg.text).then((ok) => toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad'));
+      closeMsgMenu();
+    });
+    els.msgResend.addEventListener('click', () => {
+      const t = menuMsg && menuMsg.text;
+      closeMsgMenu();
+      if (t) doSend(t); // re-send the same text as a new message
+    });
+    els.msgCancel.addEventListener('click', closeMsgMenu);
+    els.msgMenu.addEventListener('click', (e) => { if (e.target === els.msgMenu) closeMsgMenu(); });
+    document.addEventListener('keydown', (e) => { if (e.key === 'Escape' && !els.msgMenu.hidden) closeMsgMenu(); });
 
     // ---- clipboard (works on https + localhost; fallback otherwise) -------
     async function copyText(text) {
@@ -899,6 +1011,7 @@
         peers = Math.max(0, (msg.phones || 0) + (msg.desktops || 0) - 1);
         applyRoomState(msg);
         refreshStatusLabel();
+        if (!history.length) renderHistory(); // keep the empty-chat hint in sync
       } else if (msg.type === 'history') {
         (msg.messages || []).forEach((m) => ingest(m, 'in'));
       } else if (msg.type === 'text') {
@@ -906,8 +1019,9 @@
         if (els.autoCopy.checked) copyText(msg.text).then((ok) => { if (ok) toast('Copied ✓', 'good'); });
       } else if (msg.type === 'ack') {
         const text = outbox.shift();
-        if (msg.id != null && text != null) ingest({ id: msg.id, text, t: msg.t }, 'out', msg.delivered > 0);
         const n = msg.delivered | 0;
+        // Store the real device count, so the bubble can show ticks + "N devices".
+        if (msg.id != null && text != null) ingest({ id: msg.id, text, t: msg.t }, 'out', n);
         toast(n > 0 ? `Sent ✓ · landed on ${n} device${n > 1 ? 's' : ''}` : 'Saved — shows when someone joins', n > 0 ? 'good' : '');
       } else if (msg.type === 'cleared') {
         history = []; seenIds.clear(); saveHistory(); renderHistory();
@@ -1051,7 +1165,7 @@
       const value = (text ?? '').trim();
       if (!value) return false;
       if (!ws || ws.readyState !== WebSocket.OPEN) {
-        addEntry({ dir: 'out', text: value, delivered: false });
+        addEntry({ dir: 'out', text: value, delivered: 0 });
         toast('Saved to History (offline)', 'bad');
         return false;
       }
