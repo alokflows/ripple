@@ -140,11 +140,12 @@
     }
 
     .status-pill {
-      display: inline-flex; align-items: center; gap: 7px;
+      display: inline-flex; align-items: center; gap: 7px; flex-shrink: 0; max-width: 45vw;
       padding: 6px 12px 6px 10px; border-radius: 999px;
       background: var(--bg-elev); border: 1px solid var(--hairline);
       font-size: 0.72rem; font-weight: 500; color: var(--ink-soft); white-space: nowrap;
     }
+    .status-pill #statusText { overflow: hidden; text-overflow: ellipsis; }
     .dot {
       width: 8px; height: 8px; border-radius: 50%; background: var(--ink-faint);
       transition: background var(--dur) var(--ease), box-shadow var(--dur) var(--ease);
@@ -266,9 +267,17 @@
       border-radius: 26px; box-shadow: var(--shadow);
     }
     textarea {
-      flex: 1; resize: none; width: 100%; min-height: 26px; max-height: 38vh;
+      flex: 1; resize: none; width: 100%; min-height: 26px; max-height: 38vh; overflow-y: auto;
       padding: 8px 4px; background: transparent; border: none; color: var(--ink);
       font-size: 1.05rem; line-height: 1.4;
+      scrollbar-width: none; /* hide the scrollbar — the fade signals there's more */
+    }
+    textarea::-webkit-scrollbar { width: 0; height: 0; }
+    /* Once it fills up and scrolls, soften the top/bottom edges so long text
+       melts away instead of being chopped by a hard line. */
+    textarea.scroll {
+      -webkit-mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
+              mask-image: linear-gradient(to bottom, transparent 0, #000 16px, #000 calc(100% - 16px), transparent 100%);
     }
     textarea:focus { outline: none; }
     textarea::placeholder { color: var(--ink-faint); }
@@ -813,12 +822,12 @@
     }
     function refreshStatusLabel() {
       if (!ws || ws.readyState !== WebSocket.OPEN) return;
+      // Top bar just shows the live count of OTHER devices on this code — short
+      // enough to never crowd the brand. Green once at least one is connected.
       if (peers > 0) {
-        // Honest: any other device on the code counts. Roles follow the open tab
-        // (Send=phone, Receive=desktop), so we don't claim a specific other side.
-        setStatus('paired', peers === 1 ? 'Connected' : `Connected · ${peers + 1} devices`);
+        setStatus('paired', peers === 1 ? '1 device' : peers + ' devices');
       } else {
-        setStatus('waiting', 'Waiting for another device…');
+        setStatus('waiting', '0 devices');
       }
     }
 
@@ -853,7 +862,7 @@
       sock.onopen = () => {
         if (sock !== ws) return;
         backoff = 500;
-        setStatus('waiting', 'Waiting for another device…');
+        setStatus('waiting', '0 devices');
       };
       sock.onmessage = (ev) => {
         if (sock !== ws) return;
@@ -1104,6 +1113,8 @@
       els.text.style.height = 'auto';
       els.text.style.height = els.text.scrollHeight + 'px';
       els.send.disabled = !els.text.value.trim();
+      // Fade the edges only once the box is full and actually scrolling.
+      els.text.classList.toggle('scroll', els.text.scrollHeight > els.text.clientHeight + 1);
     }
     function submitText() {
       if (doSend(els.text.value)) { els.text.value = ''; refreshComposer(); }
