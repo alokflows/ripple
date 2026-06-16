@@ -252,60 +252,53 @@
     .locked-note { font-size: 0.74rem; color: var(--ink-faint); font-weight: 500; }
 
     /* ---- Compose (Send) ------------------------------------------------- */
-    .compose {
-      flex: 1; display: flex; flex-direction: column;
-      background: var(--bg-elev); border: 1px solid var(--hairline);
-      border-radius: var(--radius-lg); overflow: hidden; box-shadow: var(--shadow);
-    }
-    textarea {
-      flex: 1; resize: none; width: 100%; min-height: 130px; padding: 18px 18px 8px;
-      background: transparent; border: none; color: var(--ink);
-      font-size: 1.1rem; line-height: 1.5;
-    }
-    textarea:focus { outline: none; }
-    textarea::placeholder { color: var(--ink-faint); }
+    /* Composer: nothing but a chat bar resting at the bottom of the panel. */
+    .compose { flex: 1; display: flex; flex-direction: column; justify-content: flex-end; }
     .interim {
-      padding: 2px 18px 12px; color: var(--accent); font-size: 1rem; font-style: italic; line-height: 1.4;
+      padding: 2px 8px 10px; color: var(--accent); font-size: 1rem; font-style: italic; line-height: 1.4;
       opacity: 0; max-height: 0; overflow: hidden; transition: opacity 160ms var(--ease);
     }
     .interim.show { opacity: 0.9; max-height: 6em; }
-    .toolbar {
-      display: flex; align-items: center; gap: 12px;
-      padding: 12px 14px 14px; border-top: 1px solid var(--hairline-2);
+    /* The bar itself: a rounded pill holding mic · input · send, like a messenger. */
+    .chatbar {
+      display: flex; align-items: flex-end; gap: 8px; padding: 7px 7px 7px 10px;
+      background: var(--bg-elev); border: 1px solid var(--hairline);
+      border-radius: 26px; box-shadow: var(--shadow);
     }
+    textarea {
+      flex: 1; resize: none; width: 100%; min-height: 26px; max-height: 38vh;
+      padding: 8px 4px; background: transparent; border: none; color: var(--ink);
+      font-size: 1.05rem; line-height: 1.4;
+    }
+    textarea:focus { outline: none; }
+    textarea::placeholder { color: var(--ink-faint); }
     .mic {
-      position: relative; width: 56px; height: 56px; flex-shrink: 0; cursor: pointer;
-      border-radius: 50%; border: none; color: var(--accent-ink); background: var(--accent);
-      display: grid; place-items: center; box-shadow: var(--shadow-sm);
-      transition: transform 120ms var(--ease), background var(--dur) var(--ease);
+      position: relative; width: 42px; height: 42px; flex-shrink: 0; cursor: pointer;
+      border-radius: 50%; border: none; color: var(--ink-soft); background: var(--surface);
+      display: grid; place-items: center;
+      transition: transform 120ms var(--ease), background var(--dur) var(--ease), color var(--dur) var(--ease);
     }
-    .mic:hover { background: var(--accent-strong, var(--accent)); }
-    .mic svg { width: 23px; height: 23px; }
-    .mic:active { transform: scale(0.94); }
-    .mic.listening { animation: pulse 1.4s var(--ease) infinite; }
+    .mic:hover { color: var(--ink); }
+    .mic svg { width: 20px; height: 20px; }
+    .mic:active { transform: scale(0.92); }
+    .mic.listening { color: var(--accent-ink); background: var(--accent); animation: pulse 1.4s var(--ease) infinite; }
     .mic.listening::after {
-      content: ""; position: absolute; inset: -5px; border-radius: 50%;
+      content: ""; position: absolute; inset: -4px; border-radius: 50%;
       border: 2px solid var(--accent); opacity: 0.5; animation: ring 1.4s var(--ease) infinite;
     }
     .mic[disabled] { filter: grayscale(0.6) opacity(0.6); }
     @keyframes pulse { 50% { box-shadow: 0 0 0 6px var(--accent-soft); } }
     @keyframes ring  { 0% { transform: scale(0.8); opacity: 0.6; } 100% { transform: scale(1.4); opacity: 0; } }
-    .mic-hint { flex: 1; font-size: 0.78rem; color: var(--ink-faint); line-height: 1.35; }
-    .mic-hint b { color: var(--ink-soft); font-weight: 600; }
+    /* Send: a round paper-plane in the earthy accent; fades out when there's nothing to send. */
     .send {
-      flex-shrink: 0; padding: 0 22px; height: 46px; border-radius: 12px; border: none; cursor: pointer;
-      background: var(--ink); color: var(--bg-elev); font-size: 0.95rem; font-weight: 650;
-      transition: transform 120ms var(--ease), opacity var(--dur) var(--ease);
+      flex-shrink: 0; width: 42px; height: 42px; border-radius: 50%; border: none; cursor: pointer;
+      background: var(--accent); color: var(--accent-ink); display: grid; place-items: center;
+      transition: transform 120ms var(--ease), opacity var(--dur) var(--ease), background var(--dur) var(--ease);
     }
-    .send:hover { opacity: 0.9; }
-    .send:active { transform: scale(0.96); }
-    .send:disabled { opacity: 0.4; }
-    .send.alt {
-      background: transparent; color: var(--ink-soft); border: 1px solid var(--hairline); padding: 0 16px;
-      transition: transform 120ms var(--ease), color 90ms var(--ease), border-color 90ms var(--ease);
-    }
-    .send.alt:hover { color: var(--ink); border-color: var(--ink-faint); opacity: 1; }
-    .send.alt:active { color: var(--accent-strong); border-color: var(--accent); transform: scale(0.97); }
+    .send svg { width: 19px; height: 19px; margin-right: 1px; }
+    .send:hover { background: var(--accent-strong, var(--accent)); }
+    .send:active { transform: scale(0.92); }
+    .send:disabled { opacity: 0.35; cursor: default; transform: none; background: var(--accent); }
 
     /* ---- Receive -------------------------------------------------------- */
     .latest {
@@ -526,21 +519,21 @@
       </div>
     </div>
 
-    <!-- SEND -->
+    <!-- SEND — a lean chat bar pinned to the bottom, like a messaging app -->
     <section class="panel" id="panelSend" aria-label="Send">
       <div class="compose">
-        <textarea id="text" placeholder="Type here, or use your keyboard's mic…" aria-label="Text to send"></textarea>
         <div class="interim" id="interim" aria-hidden="true"></div>
-        <div class="toolbar">
+        <div class="chatbar">
           <button class="mic" id="mic" type="button" aria-label="Dictate" aria-pressed="false">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
               <rect x="9" y="2" width="6" height="12" rx="3" />
               <path d="M5 10a7 7 0 0 0 14 0" /><path d="M12 17v4" /><path d="M8 21h8" />
             </svg>
           </button>
-          <p class="mic-hint" id="micHint">Tap <b>🎤</b> to dictate, then Send.</p>
-          <button class="send alt" id="copyInput" type="button">Copy</button>
-          <button class="send" id="send" type="button">Send</button>
+          <textarea id="text" rows="1" placeholder="Message…" aria-label="Message"></textarea>
+          <button class="send" id="send" type="button" aria-label="Send" disabled>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 2 11 13"/><path d="M22 2 15 22l-4-9-9-4z"/></svg>
+          </button>
         </div>
       </div>
     </section>
@@ -647,7 +640,7 @@
       pairStart: $('pairStart'), pairJoin: $('pairJoin'), pairLocked: $('pairLocked'),
       createBtn: $('createBtn'), joinBtn: $('joinBtn'), joinGo: $('joinGo'), joinBack: $('joinBack'),
       codeDisplay: $('codeDisplay'), changeBtn: $('changeBtn'),
-      text: $('text'), interim: $('interim'), mic: $('mic'), micHint: $('micHint'), send: $('send'), copyInput: $('copyInput'), toast: $('toast'),
+      text: $('text'), interim: $('interim'), mic: $('mic'), send: $('send'), toast: $('toast'),
       tabSend: $('tabSend'), tabReceive: $('tabReceive'), tabDevices: $('tabDevices'),
       panelSend: $('panelSend'), panelReceive: $('panelReceive'), panelDevices: $('panelDevices'),
       latestText: $('latestText'), copyLatest: $('copyLatest'), autoCopy: $('autoCopy'),
@@ -910,7 +903,8 @@
       } else if (msg.type === 'ack') {
         const text = outbox.shift();
         if (msg.id != null && text != null) ingest({ id: msg.id, text, t: msg.t }, 'out', msg.delivered > 0);
-        toast(msg.delivered > 0 ? 'Sent ✓' : 'Saved — shows when someone joins', msg.delivered > 0 ? 'good' : '');
+        const n = msg.delivered | 0;
+        toast(n > 0 ? `Sent ✓ · landed on ${n} device${n > 1 ? 's' : ''}` : 'Saved — shows when someone joins', n > 0 ? 'good' : '');
       } else if (msg.type === 'cleared') {
         history = []; seenIds.clear(); saveHistory(); renderHistory();
         els.latestText.textContent = 'Waiting for messages…'; els.latestText.classList.add('empty');
@@ -1104,14 +1098,21 @@
       setPairState('start');
     });
 
-    els.send.addEventListener('click', () => { if (doSend(els.text.value)) els.text.value = ''; });
-
-    els.copyInput.addEventListener('click', () => {
-      const t = els.text.value.trim();
-      if (!t) { toast('Nothing to copy', 'bad'); return; }
-      copyText(t).then((ok) => {
-        toast(ok ? 'Copied ✓' : 'Copy failed', ok ? 'good' : 'bad');
-      });
+    // Grow the input with its text (up to the CSS max-height), and light up the
+    // send button only when there's something to send — standard messenger feel.
+    function refreshComposer() {
+      els.text.style.height = 'auto';
+      els.text.style.height = els.text.scrollHeight + 'px';
+      els.send.disabled = !els.text.value.trim();
+    }
+    function submitText() {
+      if (doSend(els.text.value)) { els.text.value = ''; refreshComposer(); }
+    }
+    els.text.addEventListener('input', refreshComposer);
+    els.send.addEventListener('click', submitText);
+    // Enter sends; Shift+Enter (or a soft keyboard's return) makes a new line.
+    els.text.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); submitText(); }
     });
 
     els.copyLatest.addEventListener('click', () => {
@@ -1252,6 +1253,7 @@
       const cur = els.text.value;
       const sep = cur && !/\s$/.test(cur) ? ' ' : '';
       els.text.value = cur + sep + clean;
+      refreshComposer();
     }
 
     // Build a FRESH recognizer for every listening session. Reusing a single
@@ -1328,10 +1330,6 @@
       if (wantListening) stopListening(); else startListening();
     }
     els.mic.addEventListener('click', (e) => { e.preventDefault(); toggleMic(); });
-
-    if (!voiceSupported && els.micHint) {
-      els.micHint.innerHTML = 'Tap the box, then your keyboard’s <b>🎤</b> to dictate — best quality on iPhone.';
-    }
 
     // ---- boot -------------------------------------------------------------
     renderHistory();
