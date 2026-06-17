@@ -21,6 +21,8 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # publish the APK to a Release
     defaults:
       run:
         working-directory: apps/android
@@ -46,9 +48,35 @@ jobs:
       - name: Assemble debug APK
         run: gradle :app:assembleDebug --no-daemon --stacktrace
 
-      - name: Upload APK
+      - name: Upload APK (CI artifact)
         uses: actions/upload-artifact@v4
         with:
           name: ripple-debug-apk
           path: apps/android/app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+
+      # Publish a downloadable APK to a Release so the owner can just grab it.
+      # On a v* tag → that versioned release; otherwise → a rolling "android-dev"
+      # prerelease that always holds the latest build. Only from master / tags.
+      - name: Stage APK
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          cp app/build/outputs/apk/debug/*.apk "$GITHUB_WORKSPACE/dist/Ripple-android.apk"
+
+      - name: Publish APK to a Release
+        if: github.ref == 'refs/heads/master' || startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ startsWith(github.ref, 'refs/tags/') && github.ref_name || 'android-dev' }}
+          name: ${{ startsWith(github.ref, 'refs/tags/') && format('Ripple {0}', github.ref_name) || 'Ripple — Android (latest)' }}
+          prerelease: ${{ !startsWith(github.ref, 'refs/tags/') }}
+          files: dist/Ripple-android.apk
+          body: |
+            **Ripple for Android** — the keyboard + app (debug build, sideloadable).
+
+            1. Download and install `Ripple-android.apk`.
+            2. Open Ripple, pair with a code (or scan a QR).
+            3. Enable **Ripple Keyboard** in Settings → System → Languages & input.
+
+            Same APK runs on phones and Android TV. Updated automatically from `master`.
