@@ -1,10 +1,15 @@
 const { invoke } = window.__TAURI__.core;
 const { listen } = window.__TAURI__.event;
 
+const WEB_URL = "https://yap-mkk4.onrender.com";
+
 const $ = (id) => document.getElementById(id);
 const els = {
-  code: $("code"), connect: $("connectBtn"), disconnect: $("disconnectBtn"),
-  pairConnect: $("pairConnect"), pairConnected: $("pairConnected"), codeDisplay: $("codeDisplay"),
+  pairStart: $("pairStart"), pairJoin: $("pairJoin"), pairLocked: $("pairLocked"),
+  createBtn: $("createBtn"), joinBtn: $("joinBtn"), joinGo: $("joinGo"), joinBack: $("joinBack"),
+  code: $("code"), codeDisplay: $("codeDisplay"),
+  qrBtn: $("qrBtn"), inviteBtn: $("inviteBtn"), changeBtn: $("changeBtn"),
+  qrModal: $("qrModal"), qrClose: $("qrClose"), qrImg: $("qrImg"), qrCodeLabel: $("qrCodeLabel"),
   status: $("status"), statusText: $("statusText"),
   tabChat: $("tabChat"), tabDevices: $("tabDevices"),
   panelChat: $("panelChat"), panelDevices: $("panelDevices"),
@@ -15,12 +20,14 @@ const els = {
   toast: $("toast"),
 };
 
-let connected = false;
+let currentCode = "";
 
-function setConnected(on) {
-  connected = on;
-  els.pairConnect.classList.toggle("hidden", on);
-  els.pairConnected.classList.toggle("hidden", !on);
+// ---- pairing states ----
+function setPairState(state) {
+  els.pairStart.classList.toggle("hidden", state !== "start");
+  els.pairJoin.classList.toggle("hidden", state !== "join");
+  els.pairLocked.classList.toggle("hidden", state !== "locked");
+  if (state === "join") setTimeout(() => els.code.focus(), 0);
 }
 function setStatus(state, text) {
   els.status.dataset.state = state;
@@ -35,10 +42,67 @@ function toast(text, kind = "") {
   toastTimer = setTimeout(() => (els.toast.className = "toast " + kind), 1700);
 }
 
+// Same generator as the web app — no ambiguous 0/O/1/I.
+function generateCode(len = 6) {
+  const cs = "ABCDEFGHJKLMNPQRSTUVWXYZ23456789";
+  const arr = new Uint32Array(len);
+  crypto.getRandomValues(arr);
+  let out = "";
+  for (let i = 0; i < len; i++) out += cs[arr[i] % cs.length];
+  return out;
+}
+
+async function connectWith(code) {
+  code = (code || "").trim().toUpperCase();
+  if (!/^[A-Z0-9]{3,12}$/.test(code)) { toast("Enter a 3–12 char code", "bad"); return; }
+  currentCode = code;
+  els.codeDisplay.textContent = code;
+  setPairState("locked");
+  setStatus("connecting", "Connecting…");
+  try { await invoke("connect", { code }); }
+  catch (e) { toast(String(e), "bad"); setPairState("start"); setStatus("offline", "Not connected"); }
+}
+
+els.createBtn.addEventListener("click", () => connectWith(generateCode()));
+els.joinBtn.addEventListener("click", () => { els.code.value = ""; setPairState("join"); });
+els.joinBack.addEventListener("click", () => setPairState("start"));
+els.joinGo.addEventListener("click", () => connectWith(els.code.value));
+els.code.addEventListener("keydown", (e) => { if (e.key === "Enter") connectWith(els.code.value); });
+els.codeDisplay.addEventListener("click", () => { invoke("copy_to_clipboard", { text: currentCode }); toast("Code copied ✓", "good"); });
+
+els.changeBtn.addEventListener("click", async () => {
+  try { await invoke("disconnect"); } catch {}
+  currentCode = "";
+  els.devices.innerHTML = ""; els.devicesEmpty.classList.remove("hidden");
+  setPairState("start");
+  setStatus("offline", "Not connected");
+});
+
+// ---- QR + invite ----
+els.qrBtn.addEventListener("click", () => {
+  if (!currentCode) { toast("Connect with a code first", "bad"); return; }
+  const url = WEB_URL + "/?room=" + encodeURIComponent(currentCode);
+  try {
+    const qr = window.qrcode(0, "M");
+    qr.addData(url);
+    qr.make();
+    els.qrImg.src = qr.createDataURL(8, 16);
+    els.qrCodeLabel.textContent = currentCode;
+    els.qrModal.hidden = false;
+    requestAnimationFrame(() => els.qrModal.classList.add("show"));
+  } catch { toast("Could not build QR", "bad"); }
+});
+function closeQr() { els.qrModal.classList.remove("show"); setTimeout(() => (els.qrModal.hidden = true), 200); }
+els.qrClose.addEventListener("click", closeQr);
+els.qrModal.addEventListener("click", (e) => { if (e.target === els.qrModal) closeQr(); });
+els.inviteBtn.addEventListener("click", () => {
+  if (!currentCode) { toast("Connect with a code first", "bad"); return; }
+  invoke("copy_to_clipboard", { text: WEB_URL + "/?room=" + encodeURIComponent(currentCode) });
+  toast("Invite link copied ✓", "good");
+});
+
 // ---- chat feed ----
 function addMessage(dir, text, delivered) {
-  const empty = els.feed.querySelector(".feed-empty");
-  if (empty) empty.remove();
   const li = document.createElement("li");
   li.className = "bubble " + (dir === "out" ? "out" : "in");
   li._text = text;
@@ -65,28 +129,6 @@ function setTab(tab) {
 }
 els.tabChat.addEventListener("click", () => setTab("chat"));
 els.tabDevices.addEventListener("click", () => setTab("devices"));
-
-// ---- connect / disconnect ----
-async function doConnect() {
-  const code = els.code.value.trim();
-  if (!code) { toast("Enter a code", "bad"); return; }
-  try {
-    await invoke("connect", { code });
-    els.codeDisplay.textContent = code.toUpperCase();
-    setConnected(true);
-    setStatus("connecting", "Connecting…");
-  } catch (e) { toast(String(e), "bad"); }
-}
-async function doDisconnect() {
-  try { await invoke("disconnect"); } catch {}
-  setConnected(false);
-  setStatus("offline", "Not connected");
-  els.devices.innerHTML = "";
-  els.devicesEmpty.classList.remove("hidden");
-}
-els.connect.addEventListener("click", doConnect);
-els.disconnect.addEventListener("click", doDisconnect);
-els.code.addEventListener("keydown", (e) => { if (e.key === "Enter") doConnect(); });
 
 // ---- toggles ----
 els.type.addEventListener("change", () => invoke("set_type_at_cursor", { on: els.type.checked }));
@@ -128,12 +170,10 @@ els.sheetCopy.addEventListener("click", () => { if (sheetText != null) { invoke(
 els.sheetResend.addEventListener("click", () => { const t = sheetText; closeSheet(); if (t) doSend(t); });
 els.sheetCancel.addEventListener("click", closeSheet);
 els.sheet.addEventListener("click", (e) => { if (e.target === els.sheet) closeSheet(); });
-document.addEventListener("keydown", (e) => { if (e.key === "Escape" && !els.sheet.hidden) closeSheet(); });
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") { if (!els.sheet.hidden) closeSheet(); if (!els.qrModal.hidden) closeQr(); } });
 
 // ---- devices ----
-const OS_ICON = {
-  Windows: "🪟", macOS: "💻", iOS: "📱", Android: "📱", Linux: "🐧", Device: "🖥️",
-};
+const OS_ICON = { Windows: "🪟", macOS: "💻", iOS: "📱", Android: "📱", Linux: "🐧", Device: "🖥️" };
 function renderDevices(list) {
   els.devices.innerHTML = "";
   if (!list.length) { els.devicesEmpty.classList.remove("hidden"); return; }
@@ -154,12 +194,9 @@ listen("yap://status", (e) => {
   const { state, devices, error } = e.payload;
   if (state === "connected") setStatus("connected", devices > 0 ? `${devices} device${devices > 1 ? "s" : ""}` : "Waiting for your phone…");
   else if (state === "connecting") setStatus("connecting", "Connecting…");
-  else { setStatus("offline", error || (connected ? "Reconnecting…" : "Not connected")); if (error) toast(error, "bad"); }
+  else { setStatus("offline", error || (currentCode ? "Reconnecting…" : "Not connected")); if (error) toast(error, "bad"); }
 });
-listen("yap://message", (e) => {
-  const { dir, text, delivered } = e.payload;
-  addMessage(dir, text, delivered || 0);
-});
+listen("yap://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
 listen("yap://devices", (e) => renderDevices(e.payload || []));
 
 // ---- init ----
@@ -170,6 +207,6 @@ window.addEventListener("DOMContentLoaded", async () => {
     els.autoCopy.checked = s.auto_copy;
   } catch {}
   setTab("chat");
-  setConnected(false);
+  setPairState("start");
   setStatus("offline", "Not connected");
 });

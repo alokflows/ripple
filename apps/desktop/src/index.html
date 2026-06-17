@@ -19,15 +19,22 @@
     </header>
 
     <main>
-      <!-- Pairing -->
+      <!-- Pairing: Create / Join, then a locked code with QR / Invite / Change -->
       <div class="pair">
-        <div class="pair-state" id="pairConnect">
-          <input id="code" placeholder="enter code" autocomplete="off" spellcheck="false" maxlength="12" />
-          <button id="connectBtn" class="primary">Connect</button>
+        <div class="pair-state" id="pairStart">
+          <button class="primary" id="createBtn">Create code</button>
+          <button id="joinBtn">Join with code</button>
         </div>
-        <div class="pair-state hidden" id="pairConnected">
+        <div class="pair-state hidden" id="pairJoin">
+          <button class="icon-mini" id="joinBack" aria-label="Back">‹</button>
+          <input id="code" placeholder="enter code" autocomplete="off" spellcheck="false" maxlength="12" />
+          <button class="primary" id="joinGo">Join</button>
+        </div>
+        <div class="pair-state hidden" id="pairLocked">
           <div class="field"><span class="lbl">Pairing code</span><span class="code-display" id="codeDisplay">—</span></div>
-          <button id="disconnectBtn" class="ghost">Disconnect</button>
+          <button class="ghost" id="qrBtn" title="Show a QR — scan it with your phone to join">QR</button>
+          <button class="ghost" id="inviteBtn" title="Copy a link that pairs another device">Invite</button>
+          <button class="ghost" id="changeBtn">Change</button>
         </div>
       </div>
 
@@ -76,6 +83,20 @@
       </div>
     </div>
 
+    <!-- QR: phone scans it and opens the Yap web app already connected -->
+    <div class="modal-overlay" id="qrModal" hidden>
+      <div class="modal-card">
+        <button class="modal-close" id="qrClose" aria-label="Close">×</button>
+        <div class="qr-title">Scan to connect</div>
+        <div class="qr-sub">Point your phone's camera at this code — it opens Yap <b>already connected</b>, no typing.</div>
+        <div class="qr-holder"><img id="qrImg" alt="QR code to join" /></div>
+        <div class="qr-code" id="qrCodeLabel">—</div>
+      </div>
+    </div>
+
     <div class="toast" id="toast"></div>
+
+    <!-- QR generator (local, MIT) — sets the global `qrcode`, like the web app -->
+    <script src="/qrcode.js"></script>
   </body>
 </html>
