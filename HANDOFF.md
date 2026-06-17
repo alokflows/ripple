@@ -127,8 +127,9 @@ Public link: **https://github.com/alokflows/yap/releases/tag/desktop-dev**
    GNOME Wayland). If `wtype`/`ydotool` is awkward, implement the **XDG
    RemoteDesktop portal** (`ashpd`) for zero-install Wayland typing.
 2. **One shared logo everywhere** — web favicon, in-app header, and the desktop
-   **dock/taskbar app icon** (currently the default Tauri icon). Owner wants to
-   pick one good logo at the end and apply it to all.
+   **dock/taskbar app icon**. Desktop icons are now the brand terracotta logo
+   (regenerated from `apps/desktop/src/icon.svg`); if the owner picks a different
+   final logo, re-run `tauri icon` on a 1024px PNG of it to regenerate all sizes.
 3. **start-on-login** for the desktop (tauri autostart plugin).
 4. **A real "safe window" for undo** (today it's a 20s timer; the spec wants
    "only if nothing was typed after it" — needs a keystroke monitor).
@@ -198,6 +199,18 @@ image from display" — then just report in text. The macOS app is at
 
 ## 9. Status / history log (newest first)
 
+- 2026-06-17 (later): Fixed the owner's three Ubuntu complaints. (1) **App icon**:
+  the bundled `src-tauri/icons/*` were a stray yellow/teal circle, not the brand
+  logo — regenerated every size (taskbar/installer/tray) from the real terracotta
+  `src/icon.svg` via `tauri icon`, so the dock/taskbar now shows the right logo.
+  (2) **Auto-copy on Wayland** (Ubuntu's default): `arboard` was X11-only — enabled
+  its `wayland-data-control` feature so the clipboard works on native Wayland.
+  (3) **Auto-paste / type-at-cursor on Wayland**: still needs `wtype`/`ydotool`,
+  but no longer fails silently — when no typing tool is present it copies the text
+  and toasts "press Ctrl+V to paste" (new `yap://notice` event → UI toast). Verified
+  with `cargo check` (compiles, pulls in `wl-clipboard-rs`); not run on a real
+  Wayland box. **Still TODO:** XDG RemoteDesktop portal (`ashpd`) for true
+  zero-install Wayland typing.
 - 2026-06-17: Built the Tauri desktop app, made it web-identical (Create/Join +
   QR, Chat/Devices, toggles, right-click Copy/Resend), switched paste to
   clipboard+⌘V for speed, added Linux/Wayland typing (wtype/ydotool), set up the

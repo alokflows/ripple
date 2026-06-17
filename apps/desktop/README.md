@@ -23,10 +23,12 @@ Features: pairing, live device count, **Type-at-cursor vs Copy-to-clipboard**,
 **Stop pasting**, **Undo last**, send-to-phone, system tray (Show / Disconnect /
 Quit). On macOS it prompts once for Accessibility permission.
 
-**Linux note:** X11 works out of the box (clipboard + Ctrl+V via `enigo`). On
-**Wayland** the app types via `wtype` (wlroots: Sway/Hyprland) or `ydotool`
-(GNOME/KDE — needs the `ydotoold` daemon running). If typing does nothing on a
-GNOME/KDE Wayland session, install one of them, e.g.:
+**Linux note:** X11 works out of the box (clipboard + Ctrl+V via `enigo`).
+Auto-copy works on both X11 and **Wayland** (Ubuntu's default — clipboard built
+with `wayland-data-control`).
+
+Type-at-cursor on **Wayland** needs a typing tool — `wtype` (wlroots:
+Sway/Hyprland) or `ydotool` (GNOME/KDE — needs the `ydotoold` daemon running):
 
 ```sh
 sudo apt install ydotool   # then: sudo ydotoold &
@@ -34,7 +36,10 @@ sudo apt install ydotool   # then: sudo ydotoold &
 sudo apt install wtype
 ```
 
-A no-install path via the XDG RemoteDesktop portal is the planned follow-up.
+If no tool is present, Yap **doesn't fail silently**: it copies the message to
+the clipboard and shows "press Ctrl+V to paste", so it still works with one
+keypress. A no-install path via the XDG RemoteDesktop portal is the planned
+follow-up for true zero-setup typing.
 
 **Not yet done:** start-on-login; XDG portal for zero-setup Wayland; final shared
 logo / app icon.

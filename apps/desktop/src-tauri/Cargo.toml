@@ -29,7 +29,9 @@ url = "2"
 
 # Inject text at the OS cursor, and the clipboard fallback.
 enigo = "0.2"
-arboard = "3"
+# `wayland-data-control` lets the clipboard work on native Wayland sessions
+# (Ubuntu's default), not just X11 — otherwise Auto-copy does nothing there.
+arboard = { version = "3", features = ["wayland-data-control"] }
 
 # Stable per-device id, persisted locally.
 uuid = { version = "1", features = ["v4"] }

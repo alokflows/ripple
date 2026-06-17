@@ -366,17 +366,17 @@ fn undo(state: State<AppState>) {
 // ---- app -------------------------------------------------------------------
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let inject_tx = inject::spawn();
-    let state = AppState {
-        inject_tx,
-        settings: Arc::new(Mutex::new(Settings::default())),
-        relay: Mutex::new(None),
-    };
-
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
-        .manage(state)
         .setup(|app| {
+            // The injector emits UI notices, so it needs the app handle — spawn it
+            // here (where the handle exists) and register the state for commands.
+            let inject_tx = inject::spawn(app.handle().clone());
+            app.manage(AppState {
+                inject_tx,
+                settings: Arc::new(Mutex::new(Settings::default())),
+                relay: Mutex::new(None),
+            });
             build_tray(app.handle())?;
             Ok(())
         })

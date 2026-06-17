@@ -198,6 +198,9 @@ listen("yap://status", (e) => {
 });
 listen("yap://message", (e) => addMessage(e.payload.dir, e.payload.text, e.payload.delivered || 0));
 listen("yap://devices", (e) => renderDevices(e.payload || []));
+// Injector couldn't type at the cursor (e.g. Wayland with no typing tool) —
+// the text is on the clipboard instead; let the user know.
+listen("yap://notice", (e) => toast(String(e.payload), "bad"));
 
 // ---- init ----
 window.addEventListener("DOMContentLoaded", async () => {

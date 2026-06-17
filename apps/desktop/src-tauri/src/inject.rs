@@ -15,6 +15,7 @@
 use enigo::{Direction, Enigo, Key, Keyboard, Settings};
 use std::sync::mpsc::{Receiver, Sender};
 use std::time::{Duration, Instant};
+use tauri::{AppHandle, Emitter};
 
 pub enum InjectCmd {
     /// Paste this text at the cursor. `keep_clipboard` = leave it on the
@@ -37,13 +38,19 @@ const PASTE_MOD: Key = Key::Meta;
 #[cfg(not(target_os = "macos"))]
 const PASTE_MOD: Key = Key::Control;
 
-pub fn spawn() -> Sender<InjectCmd> {
+pub fn spawn(app: AppHandle) -> Sender<InjectCmd> {
     let (tx, rx) = std::sync::mpsc::channel::<InjectCmd>();
-    std::thread::spawn(move || run(rx));
+    std::thread::spawn(move || run(rx, app));
     tx
 }
 
-fn run(rx: Receiver<InjectCmd>) {
+// Surface a short message to the UI (toast). Used when paste can't reach the
+// cursor (e.g. Wayland without a typing tool) so the app never looks dead.
+fn notice(app: &AppHandle, text: &str) {
+    let _ = app.emit("yap://notice", text.to_string());
+}
+
+fn run(rx: Receiver<InjectCmd>, app: AppHandle) {
     let mut enigo = match Enigo::new(&Settings::default()) {
         Ok(e) => Some(e),
         Err(e) => {
@@ -70,12 +77,23 @@ fn run(rx: Receiver<InjectCmd>) {
                         }
                         continue;
                     }
-                    eprintln!("[inject] Wayland typing needs `wtype` or `ydotool` (with ydotoold). Install one of them.");
+                    // No Wayland typing tool available. Don't die silently: put the
+                    // text on the clipboard so the user can paste it themselves, and
+                    // tell them how. (Auto-copy aside, we always leave it here on
+                    // this fallback — a paste they must trigger needs it present.)
+                    eprintln!("[inject] Wayland typing needs `wtype` or `ydotool` (with ydotoold).");
+                    if let Some(cb) = clipboard.as_mut() {
+                        let _ = cb.set_text(text);
+                    }
+                    notice(&app, "Couldn't type at the cursor on Wayland — text copied, press Ctrl+V to paste.");
                     continue;
                 }
 
                 // macOS / Windows / X11: clipboard + paste shortcut.
-                let (Some(en), Some(cb)) = (enigo.as_mut(), clipboard.as_mut()) else { continue };
+                let (Some(en), Some(cb)) = (enigo.as_mut(), clipboard.as_mut()) else {
+                    notice(&app, "Couldn't reach the keyboard to type. Check the app's permissions.");
+                    continue;
+                };
                 let prev = if keep_clipboard { None } else { cb.get_text().ok() };
                 if cb.set_text(text.clone()).is_err() {
                     continue;
