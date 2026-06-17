@@ -13,6 +13,7 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.imePadding
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
@@ -23,7 +24,6 @@ import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Send
-import androidx.compose.material.icons.filled.QrCode2
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -48,11 +48,13 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.asImageBitmap
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.ImeAction
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.ripple.app.R
 import com.ripple.app.RippleViewModel
 import com.ripple.app.Screen
 import com.ripple.app.UiState
@@ -67,7 +69,8 @@ fun RippleApp(vm: RippleViewModel) {
     RippleTheme {
         Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
             when (ui.screen) {
-                Screen.Connect -> ConnectScreen(onConnect = vm::connect)
+                Screen.Connect -> ConnectScreen(onConnect = vm::connect, onScan = vm::openScanner)
+                Screen.Scan -> ScanScreen(onCode = vm::connect, onCancel = vm::cancelScan)
                 Screen.Chat -> ChatScreen(ui = ui, onSend = vm::send, onLeave = vm::leave, onDismissNotice = vm::dismissNotice)
             }
         }
@@ -75,7 +78,7 @@ fun RippleApp(vm: RippleViewModel) {
 }
 
 @Composable
-private fun ConnectScreen(onConnect: (String) -> Unit) {
+private fun ConnectScreen(onConnect: (String) -> Unit, onScan: () -> Unit) {
     var code by remember { mutableStateOf("") }
     Column(
         modifier = Modifier.fillMaxSize().padding(24.dp),
@@ -106,7 +109,14 @@ private fun ConnectScreen(onConnect: (String) -> Unit) {
             modifier = Modifier.fillMaxWidth().widthIn(max = 360.dp),
         ) { Text("Connect") }
         Spacer(Modifier.height(10.dp))
-        TextButton(onClick = { code = randomCode() }) { Text("Create a new code") }
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            TextButton(onClick = { code = randomCode() }) { Text("Create a new code") }
+            TextButton(onClick = onScan) {
+                Icon(painterResource(R.drawable.ic_qr), contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(6.dp))
+                Text("Scan QR")
+            }
+        }
     }
 }
 
@@ -141,7 +151,7 @@ private fun ChatScreen(
                 },
                 actions = {
                     IconButton(onClick = { showQr = true }, enabled = ui.code.isNotEmpty()) {
-                        Icon(Icons.Filled.QrCode2, contentDescription = "Show pairing QR")
+                        Icon(painterResource(R.drawable.ic_qr), contentDescription = "Show pairing QR")
                     }
                 },
             )

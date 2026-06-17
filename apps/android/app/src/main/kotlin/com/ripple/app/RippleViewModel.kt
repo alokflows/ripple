@@ -24,7 +24,7 @@ data class UiState(
     val terminal: String? = null,
 )
 
-enum class Screen { Connect, Chat }
+enum class Screen { Connect, Scan, Chat }
 
 /**
  * Thin adapter over [RippleRepository] (which owns the one shared socket). The
@@ -55,6 +55,10 @@ class RippleViewModel(app: Application) : AndroidViewModel(app) {
         screen.value = Screen.Chat
         RippleRepository.connect(code)
     }
+
+    fun openScanner() { screen.value = Screen.Scan }
+
+    fun cancelScan() { screen.value = Screen.Connect }
 
     fun send(text: String) { RippleRepository.send(text) }
 

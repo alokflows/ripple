@@ -51,18 +51,30 @@ dependencies {
     implementation("androidx.core:core-ktx:1.15.0")
     implementation("androidx.activity:activity-compose:1.9.3")
     implementation("androidx.lifecycle:lifecycle-runtime-ktx:2.8.7")
+    implementation("androidx.lifecycle:lifecycle-runtime-compose:2.8.7")
     implementation("androidx.lifecycle:lifecycle-viewmodel-compose:2.8.7")
 
     implementation("androidx.compose.ui:ui")
     implementation("androidx.compose.ui:ui-tooling-preview")
     implementation("androidx.compose.material3:material3")
-    implementation("androidx.compose.material:material-icons-extended")
+    // The small core icon set (ArrowBack/Send live here). Deliberately NOT
+    // material-icons-extended — that artifact bloats the APK; our QR glyph is a
+    // local vector instead.
+    implementation("androidx.compose.material:material-icons-core")
 
     implementation("com.squareup.okhttp3:okhttp:4.12.0")
     implementation("org.jetbrains.kotlinx:kotlinx-coroutines-android:1.9.0")
 
-    // QR generation (pure-Java; no network, no camera). Mirrors web/desktop pairing.
+    // QR generate + decode (pure-Java; offline). Reused for camera scanning too,
+    // so we avoid pulling in the much larger ML Kit barcode model.
     implementation("com.google.zxing:core:3.5.3")
+
+    // Camera preview + frame analysis for QR scanning (lean; no Play Services).
+    val camerax = "1.4.1"
+    implementation("androidx.camera:camera-core:$camerax")
+    implementation("androidx.camera:camera-camera2:$camerax")
+    implementation("androidx.camera:camera-lifecycle:$camerax")
+    implementation("androidx.camera:camera-view:$camerax")
 
     debugImplementation("androidx.compose.ui:ui-tooling")
 }
