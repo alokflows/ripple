@@ -1,245 +1,210 @@
-# Yap — Handoff Report (read me, then continue the work)
+# Yap — Handoff (read me, then continue)
 
-**You are Claude Code, picking up an in-progress build of Yap.** The owner is
-non-technical and is handing this to you with one instruction: *"read the report
-and continue."* This file is your full briefing — current state, decisions
-already made, and the exact ordered work left to do, with how to verify each
-piece. **When every task in §6 is done and verified, delete this file** (it is a
-baton, not permanent docs — the permanent docs live in `docs/` and `prompts/`).
+**You are Claude Code picking up the Yap project.** The owner is non-technical,
+usually on their phone, often away from the computer (which they leave on for
+you). Their standing instruction: *"read the handoff and continue."* They want
+maximum autonomy — do everything you can without making them intervene, and only
+ask when there is genuinely no other way. Keep messages short and concrete.
+
+This file is the living context. Update it as you make progress so the next
+session can pick up cold.
 
 ---
 
 ## 0. Prime directives (do not violate)
 
-1. **Never break the live app.** `master` auto-deploys to Render
-   (`render.yaml`). Anything pushed to `master` goes live in minutes.
-2. **Verify before you deploy.** Run it for real (browser / device) before it
-   touches `master`. If you can't verify a thing yet, put it on a branch and say so.
-3. **Be surgical.** Don't touch unrelated code. Remove dead code you create.
-4. **Privacy is the product.** No external/CDN calls at runtime. The app must
-   work offline (it's a PWA with a service worker). The relay is a *blind pipe*
-   that never sees plaintext or the raw pairing code.
-5. **Match the look.** Earthy "Claude" theme, minimal, fast. Mirror the existing
-   CSS variables and component style in `server/public/index.html`.
-6. **Tell the truth.** If a step fails, say so with the output. Never claim
-   something works that you didn't run.
+1. **Never break the live web app.** `master` is what users hit. The web app +
+   relay live in `server/` and deploy to Render (see §6). Verify before shipping.
+2. **Privacy is the product.** The relay is a *blind pipe*: it must never see the
+   raw pairing code or any plaintext. Clients route on a hash of the code and
+   exchange only sealed (encrypted) blobs. No external/CDN calls at runtime.
+3. **Match the look.** Earthy "Claude" theme; minimal, fast. Web and desktop
+   should feel identical.
+4. **Tell the truth.** If something isn't verified (e.g. needs a real device),
+   say so. Don't claim a thing works that you didn't run.
+5. **Be surgical.** Don't touch unrelated code; remove dead code you create.
 
 ---
 
 ## 1. What Yap is
 
 Share a short **pairing code** between devices; anything you type or dictate on
-one device appears **at the text cursor** on the others. Phone ↔ computer ↔ TV,
-both directions, no accounts. Live app: https://yap-mkk4.onrender.com
+one device appears on the others (phone ↔ computer ↔ TV), both directions, no
+accounts. On the **desktop app** received text is **typed at the OS cursor**.
+Live web app: **https://yap-mkk4.onrender.com**
 
-**Stack:** Node.js relay + static web app in `server/` (`server.js`,
-`public/index.html` — the whole web UI is that one HTML file with inline CSS/JS).
-Planned native apps in `apps/` (desktop = Tauri/Rust; android; ios). Shared
-logic in `packages/core/`. Aspirational protocol in `docs/protocol.md`.
-
----
-
-## 2. Decisions the owner has locked (build to these)
-
-- **Encryption first.** Add end-to-end encryption across web + relay (and all
-  apps) *before* shipping the desktop app. (This report's §6 Task A.)
-- **Host = whoever starts the code** (already true). Plus a **"Make host"**
-  transfer button (already shipped). Plus: a **TV auto-hands host to the first
-  phone/computer that joins**, so the human device is always in control.
-- **Undo = clear my box + "unsend last".** In the desktop app, undo also deletes
-  the text it just pasted on the other screen — *but only if nothing was typed
-  after it* (safe window). Web-only undo just clears the compose box.
-- **Desktop app = Tauri (Rust), lightweight**, same UI as the web app, with:
-  paste-at-cursor, a copy-to-clipboard toggle, a **stop-pasting** toggle, undo.
-- **APK in GitHub Releases** — a scroll-down "Releases" download, auto-built.
-- **QR scan-to-connect** (shipped) and, later, **QR inside the keyboard** + NFC
-  tap-to-connect. On a **TV**, show the TV's *own* QR for a phone to scan (you
-  don't scan from a TV), and put primary remote-focus on the pairing button.
+**Repo:** `alokflows/yap` (public, GitHub). Local working copy:
+`/Users/megha/Documents/Yap`. `gh` is authed as `alokflows`.
 
 ---
 
-## 3. What was shipped THIS session (all on `master`, all live, all tested)
+## 2. Repo layout
 
-| Feature | Where | Verified |
-|---|---|---|
-| QR scan-to-connect (button on paired view → QR of `/?room=CODE`) | `index.html` + vendored `qrcode.js` | QR builds a valid scannable GIF (Node), serves over HTTP |
-| Lean bottom **chat bar** (paper-plane send, inline mic, Copy removed) | `index.html` | Renders; owner confirmed live |
-| Send button enables only with text; Enter sends, Shift+Enter newline; box auto-grows | `index.html` | Script parses, logic reviewed |
-| Truthful send toast ("landed on N devices") from the relay's real ack | `index.html` | Server already returns `ack.delivered` |
-| Short **status pill** ("0/1/2 devices") + width cap so it can't crowd the logo | `index.html` | — |
-| Text box caps height, scrolls internally, **soft gradient edges** (only while scrolling) | `index.html` | — |
-| **"Make host"** control transfer (crown in Devices list) | `server.js` + `index.html` | **2-client test**: 1st joiner is host; host can transfer; non-host cannot grab |
-| Join box now starts **empty** (no confusing pre-fill of your own old code) | `index.html` | logic reviewed |
-| **In-app QR scanner** (Scan button on join → camera → connect, never leaves site) | `index.html` + vendored `jsQR.js` | assets serve; **camera flow NOT testable in cloud — verify on a phone** |
-| **Connection no longer churns on tab switch**; server enforces **one socket per device id** | `server.js` + `index.html` | **WS test**: 3 conns from 2 devices → 2 members, 1 host. Killed the flicker / double-host / phantom devices |
-| Device rows labelled by **OS** (Phone vs Computer), not the old tab-role | `index.html` | logic reviewed |
-| **Send + Receive merged into one "Chat" screen** with left/right **message bubbles**, newest-at-bottom, auto-scroll. Tabs are now just **Chat / Devices** | `index.html` | renders; structure verified |
-| **Delivery ticks** on sent bubbles (single = sent, double accent = reached devices) + **"N devices"** in light gray | `index.html` | uses relay's real `ack.delivered` count |
-| **Long-press a message → action sheet** (Copy / Resend); quick tap still copies | `index.html` | delegated pointer handlers; verify gesture on a phone |
-| Dynamic **empty-chat hint** (waiting vs connected vs offline) + 44px tap targets | `index.html` | — |
-| "Destroy code" moved to a quiet spot at the bottom of Devices; light-theme borders darkened ~25% | `index.html` | — |
-
-NOTE: the UI is now a **single Chat screen** (not Send/Receive tabs) and there is
-no send/receive "role" anymore — every device sends and receives. The
-`?room=CODE` value sent to the relay is still the **raw code** (encryption not
-wired yet — Task A). A 🔒 "encrypted" badge was intentionally NOT added until
-encryption is real.
-
-The QR auto-connect works because the app **already** auto-connects from
-`/?room=CODE` on load (`index.html`, the `urlRoom` logic).
+- `server/` — the relay + web app (deployed). `server.js` is the Node WebSocket
+  relay; `server/public/index.html` is the **entire web UI** (inline CSS/JS),
+  plus `sw.js` (PWA service worker), `qrcode.js`, `jsQR.js`.
+- `packages/core/crypto.mjs` — E2E crypto (JS/Web Crypto), used by the web app.
+  Tests: `node --test packages/core/crypto.test.mjs` (7/7).
+- `packages/core-rs/` — the **Rust mirror** of the crypto. `cargo test` (8/8),
+  asserts the cross-language vectors below.
+- `apps/desktop/` — the **Tauri v2 desktop app** (Rust core + vanilla HTML/JS UI).
+- `apps/android/`, `apps/ios/` — placeholders (not started).
+- `prompts/` — original build specs. `docs/` — protocol/security docs.
+- `.github/workflows/` — `keepalive.yml` (pings the relay so Render's free tier
+  doesn't sleep) and `desktop-release.yml` (builds desktop installers, §7).
 
 ---
 
-## 4. The verified encryption core (your foundation — already proven here)
+## 3. The crypto core (the heart of the privacy model)
 
-`packages/core/crypto.mjs` — plain ESM, Web Crypto only (identical in browser &
-Node). Exports:
-
-- `normalizeCode(code)` → upper-case, strip non-alphanumerics.
+Same math in JS (`packages/core/crypto.mjs`) and Rust (`packages/core-rs`):
+- `normalizeCode` → upper-case, strip non-alphanumerics.
 - `roomFromCode(code)` → `base64url(SHA-256(code))`. **The relay routes on this**,
-  so it never sees the raw code.
-- `keyFromCode(code)` → AES-GCM-256 key via PBKDF2 (salt `"yap.kdf.v1"`,
-  **210000** iterations, SHA-256).
+  never the raw code.
+- `keyFromCode(code)` → AES-GCM-256 key via PBKDF2 (salt `yap.kdf.v1`, **210000**
+  iters, SHA-256).
 - `seal(key, text)` → `base64url(iv(12) || AES-GCM ciphertext)`.
-- `unseal(key, blob)` → plaintext, or `null` on wrong key / tamper (never throws).
+- `unseal(key, blob)` → plaintext, or null on wrong key / tamper (never throws).
 
-**Run the tests:** `node --test packages/core/crypto.test.mjs` → 7/7 pass
-(round-trip, wrong-key rejected, tamper rejected, deterministic room hash,
-code hidden, fresh nonce, normalize).
-
-**Cross-language test vectors** (so the Rust mirror in the desktop app can be
-checked against the exact same math):
+**Cross-language vectors (must stay byte-for-byte; both JS+Rust tests assert):**
 - `roomFromCode("K7QF9P")` = `m5y7nOTrj9TE1Pbh9LSBNGFqitACsWIlLsKk8cfTqjg`
-- `seal` of `"hello, cursor"` with code `K7QF9P` **and a forced all-zero 12-byte
-  IV** (test-only) = `AAAAAAAAAAAAAAAAA8gVxDfIR9jOqUCwRBdsU7oecTFk-DiEAtrwkOY`
-  (Rust must reproduce this byte-for-byte with the same fixed IV, then switch to
-  random IVs in production.)
+- `seal` of `"hello, cursor"` with code `K7QF9P` and a forced all-zero 12-byte IV
+  = `AAAAAAAAAAAAAAAAA8gVxDfIR9jOqUCwRBdsU7oecTFk-DiEAtrwkOY`
 
 ---
 
-## 5. Important truths about the current relay (read before Task A)
+## 4. What's DONE (and live)
 
-- `server.js` currently routes on the **raw code** in the query
-  (`?room=CODE`) and forwards **plaintext** `{type:'text', text}`. The
-  `docs/protocol.md` describes the *target* encrypted protocol — the live relay
-  does **not** implement it yet.
-- `sanitizeCode()` clamps the room to `[A-Z0-9]{≤12}`. A hashed room is longer,
-  mixed-case base64url (`-` `_`) — so Task A must add a `sanitizeRoom()` that
-  accepts base64url up to ~64 chars, used for the `?room=` param and `/poll`.
-- The relay keeps a small in-memory session history per room and enforces
-  `MAX_TEXT_LENGTH`. After encryption, history holds ciphertext (good — opaque),
-  and ciphertext is ~1.4× longer, so raise `MAX_TEXT_LENGTH` accordingly.
-- The downloadable helper scripts under `server/helpers/` speak the **old
-  plaintext** protocol. Encrypting the web app **will break them.** That's
-  acceptable per the owner's "encrypt first / replace helpers with the desktop
-  app" decision — but **hide the helper download UI** (the header "paste" modal
-  in `index.html`) when you ship encryption, until the Tauri app replaces it.
+### Task A — E2E encryption (LIVE) ✅
+The relay is blind. Web app derives key+room from the code, routes the WS on the
+hashed room, seals outgoing / unseals incoming (skips undecryptable), keeps the
+local echo plaintext. Relay has `sanitizeRoom()` (base64url ≤64) on WS + `/poll`,
+raised `MAX_TEXT_LENGTH`, and serves `packages/core/crypto.mjs` at
+`/core/crypto.mjs`. SW shell includes it. Helper-download UI hidden (old plaintext
+protocol). Verified end-to-end against the production relay.
 
----
+### Web polish (LIVE) ✅
+- WhatsApp-style compact sent bubbles (time + tick only; device count in the tick
+  tooltip).
+- Fixed desktop layout overflow: the mobile-keyboard `visualViewport` hack is now
+  gated to touch devices, so desktop holds a stable 100dvh.
+- Auto-copy is focus-resilient: if the tab is unfocused when a message lands, it
+  copies the moment the tab regains focus.
 
-## 6. Work left to do — in order. Verify each before moving on.
+### Task B — Desktop app (built; macOS verified) ✅ (mostly)
+`apps/desktop/` Tauri v2 app, **web-identical UX**:
+- Pairing identical to web: **Create code / Join with code**, then a locked code
+  with **QR / Invite / Change**. QR encodes `https://yap-mkk4.onrender.com/?room=CODE`
+  (vendored `qrcode.js`), so a phone scans it and opens the web app connected.
+- **Chat / Devices** tabs, message bubbles, composer; right-click a bubble →
+  **Copy / Resend**. Devices tab lists members (name/type/host) from presence.
+- Toggles: **Type at cursor** + **Auto-copy** (no separate copy mode). **Undo**
+  button (deletes the last pasted run within a ~20s safe window).
+- System tray: Show / Disconnect / Quit. macOS prompts once for Accessibility.
+- **Fast paste:** "type at cursor" = clipboard + Cmd/Ctrl+V (one paste action),
+  NOT char-by-char typing. Saves/restores the clipboard unless Auto-copy is on.
+- **Linux:** X11 uses clipboard + Ctrl+V (enigo). **Wayland** types via `wtype`
+  (wlroots) or `ydotool` (GNOME/KDE, needs `ydotoold`) — see README + §8.
 
-### Task A — Wire E2E encryption into web + relay  *(do FIRST; deploys live)*
-**✅ DONE — built on branch `claude/encrypt-web-relay`, verified end-to-end in
-Node against the real relay (two clients, both directions, history replay, wrong
-code isolated, relay logs show only the hashed room). Not yet merged to `master`
-— awaiting the owner's go-ahead for the live deploy + a real two-device test.**
-What shipped: `/core/crypto.mjs` served from `packages/core` (single source);
-web app derives `keyFromCode`/`roomFromCode` on pairing, routes the WS on the
-hash, seals outgoing / unseals incoming (skips undecryptable), keeps the local
-echo in plaintext; relay gained `sanitizeRoom()` (base64url ≤64) on WS + `/poll`,
-raised `MAX_TEXT_LENGTH` to 2M, serves the core module; SW bumped to `yap-v9`
-with the module in the shell; helper-download UI hidden. **Rollout note:** a new
-client (hashed room) and an old still-open client (raw-code room) land in
-different rooms until the old one reloads — a transient during deploy, self-heals
-on refresh.
+Rust: `src-tauri/src/lib.rs` (relay client over `tokio-tungstenite` +
+**native-tls** — note: rustls needs a crypto-provider; native-tls avoids it),
+`src-tauri/src/inject.rs` (keystroke/clipboard/undo). Crypto from `packages/core-rs`.
+Verified: `cargo test` (vectors) + a live sealed round-trip through the production
+relay using the desktop's exact stack. macOS `.app` installed at
+`/Applications/Yap.app`.
 
-Goal: relay becomes blind. Build on `packages/core/crypto.mjs`.
-
-**Web (`server/public/index.html`):**
-1. Load the core as a module and expose it to the existing classic inline
-   script, e.g. add `<script type="module">import * as C from '/core/crypto.mjs';
-   window.YapCrypto = C; window.dispatchEvent(new Event('yapcrypto'))</script>`,
-   and serve `packages/core/crypto.mjs` at `/core/crypto.mjs` (add a static
-   route or copy it into `public/`). Add it to the service-worker `SHELL` and
-   bump the cache (currently `yap-v7`).
-2. When a code is locked in (create/join), `await keyFromCode(code)` and
-   `await roomFromCode(code)`; stash both. Keep **displaying the raw code** to
-   the user — only the relay sees the hash.
-3. `wsUrl()` must use the **hashed room**, not the raw code.
-4. Make `doSend` async: `seal(key, text)` → send `{type:'text', text: blob}`.
-   Keep the local echo in plaintext (the sender already has it in `outbox`).
-5. On incoming `{type:'text', text: blob}` and on `history` replay: `unseal`
-   each; if `null`, skip it (don't render garbage).
-**Relay (`server/server.js`):**
-6. Add `sanitizeRoom()` (base64url, ≤64) and use it for the WS `room` and
-   `/poll`. Raise `MAX_TEXT_LENGTH`. Nothing else changes — it already forwards
-   opaque strings.
-7. Hide the helper-download UI (see §5).
-**Verify (must do before merging to `master`):** run `node server/server.js`
-locally, open two browser tabs, pair with a code, send both directions, refresh
-to confirm history decrypts, kill/restore the connection to confirm reconnect.
-Confirm the relay logs show only hashed rooms and opaque blobs. Then merge → deploy.
-
-### Task B — Desktop app (Tauri/Rust)  *(needs a real desktop; can't build in cloud)*
-**🟡 IN PROGRESS — built and working on macOS.** Scaffolded a Tauri v2 app in
-`apps/desktop/` (Rust core + vanilla HTML/JS UI). The crypto is mirrored in
-`packages/core-rs` and **passes the §4 vectors byte-for-byte** (`cargo test`,
-8/8). The relay client (`tokio-tungstenite` over **native-tls** — note: rustls
-needs a crypto-provider, native-tls avoids that) joins on the hashed room,
-seals/unseals, heartbeats (Pong), and reconnects; verified with a live
-round-trip against the production relay. UI has pairing, device count,
-Type-at-cursor vs Copy-to-clipboard, Stop-pasting, Undo-last, send-to-phone, and
-a tray (Show/Disconnect/Quit). macOS prompts once for Accessibility.
-**Left for Task B:** real on-device paste test (focus a text field, grant
-Accessibility), Windows/Linux run-through (Linux Wayland → XDG RemoteDesktop
-portal, currently relies on `enigo`), start-on-login, and a true keystroke-aware
-"safe window" for undo (today it's a 20s timer). Run: `cd apps/desktop && npm
-install && npm run tauri dev`.
-
-Scaffold in `apps/desktop/` per `prompts/desktop.md`. The WS client + crypto
-live in **Rust**; the UI reuses the web look.
-- **Mirror the crypto in Rust** (`aes-gcm`, `pbkdf2`, `sha2`, `base64` crates)
-  with the §4 params and assert the §4 test vectors in a `cargo test`.
-- Join as a normal peer (hashed room, sealed text).
-- **Paste at cursor:** Windows `SendInput`/`enigo`; macOS `CGEvent` (+ one-time
-  Accessibility prompt); Linux **XDG RemoteDesktop portal** (Wayland) with
-  `ydotool`/`xdotool` fallback (X11).
-- Toggles: **copy-to-clipboard** vs **paste-at-cursor**, and **stop pasting**.
-- **Undo / unsend:** track the last pasted run; if nothing was typed after it,
-  delete exactly that run (send the right number of backspaces / synthesize
-  undo). Never delete from the middle.
-- Tray: connected state, quick disconnect, start-on-login.
-**Verify:** on each OS, pair from a phone → text types at the cursor; on Linux
-confirm Wayland via the portal; confirm undo only fires within the safe window.
-
-### Task C — APK in GitHub Releases (auto-build)
-GitHub Actions workflow: on a version tag (or merge to `master`), build the
-Android app and **attach the `.apk` to a GitHub Release** so it appears under the
-repo's "Releases" tab for one-tap download. (Desktop: `npm run tauri build` →
-`.exe`/`.dmg`/`.AppImage` attached the same way.)
-
-### Task D — Keyboard app + TV + NFC
-- **Android keyboard (IME)** in `apps/android/` with a built-in Yap panel: pair,
-  history, and a **QR generated inside the keyboard** for instant pairing.
-- **TV:** same Android app, auto-detected (leanback) — *one APK, no separate
-  build*. Put primary D-pad focus on the pairing/QR button. The TV shows **its
-  own QR** for a phone to scan, and **auto-hands host** to the first phone/
-  computer that joins (server: add a "passive host" flag so the TV's `hostDid`
-  transfers automatically on the next interactive join).
-- **NFC** tap-to-connect between two phones (write/read the `/?room=CODE` link).
-- **iOS** (`apps/ios/`): separate Swift build + App Store (Apple requires it).
-
-### Cross-cutting — stronger codes (ties to "encryption first")
-The pairing code is the only secret, so encourage strength: default to longer
-auto-codes, **warn on weak custom codes** (Gmail-style strength hint), and let
-QR carry a high-entropy code so scan-pairing is the strongest path. Add relay
-**rate-limiting** on join attempts per room to throttle guessing.
+### Cross-platform installers (CI) ✅
+`.github/workflows/desktop-release.yml` (tauri-action) builds macOS/Windows/Linux
+on a `v*` tag or manual `gh workflow run desktop-release.yml` → a GitHub Release
+`desktop-dev` with `.dmg` / `.msi` / `.exe` / `.AppImage` / `.deb` / `.rpm`.
+Public link: **https://github.com/alokflows/yap/releases/tag/desktop-dev**
 
 ---
 
-## 7. When you're done
+## 5. What's LEFT (next steps, roughly in priority)
 
-When Tasks A–D are complete and verified and deployed, **delete `HANDOFF.md`**
-and make sure the durable docs (`docs/`, `prompts/`, `README.md`) reflect the
-final state. Leave the repo clean — no dead code, no stray test scripts.
+1. **Verify Wayland typing on the owner's office Linux machine** (likely Ubuntu
+   GNOME Wayland). If `wtype`/`ydotool` is awkward, implement the **XDG
+   RemoteDesktop portal** (`ashpd`) for zero-install Wayland typing.
+2. **One shared logo everywhere** — web favicon, in-app header, and the desktop
+   **dock/taskbar app icon** (currently the default Tauri icon). Owner wants to
+   pick one good logo at the end and apply it to all.
+3. **start-on-login** for the desktop (tauri autostart plugin).
+4. **A real "safe window" for undo** (today it's a 20s timer; the spec wants
+   "only if nothing was typed after it" — needs a keystroke monitor).
+5. **Task C/D:** Android keyboard (IME) app with in-keyboard QR; TV (leanback,
+   auto-hand-host to first phone); NFC; iOS (separate Swift build). APK auto-built
+   into Releases.
+6. **Stronger codes / rate-limiting** on the relay (guessing throttle).
+
+---
+
+## 6. Deploy (web app / relay) — IMPORTANT quirk
+
+Render hosts the relay (`render.yaml`, `rootDir: server`, autoDeploy from
+`master`). **Render's auto-deploy has NOT been firing** — the owner triggers a
+**Manual Deploy** in the Render dashboard after a push. There is no Render API key
+or deploy hook available locally, so you cannot deploy yourself; tell the owner to
+Manual Deploy (or have them paste a Render Deploy Hook URL so you can `curl` it).
+The whole repo is cloned by Render, so the `/core/crypto.mjs` route reading
+`../packages/core/crypto.mjs` works despite `rootDir: server`.
+
+To confirm a deploy landed: `curl -s https://yap-mkk4.onrender.com/sw.js | grep -o 'yap-v[0-9]*'`
+(bump that cache version in `server/public/sw.js` when you change the web app).
+
+---
+
+## 7. Desktop: build / run / release commands
+
+```sh
+# dev run (from a Mac/Linux/Windows with the toolchain)
+cd apps/desktop && npm install && npm run tauri dev
+
+# local release build
+cd apps/desktop && npm run tauri build      # → .dmg/.app (mac), etc.
+
+# cross-platform installers via CI (needs gh auth as alokflows)
+gh workflow run desktop-release.yml
+gh run watch <run-id> --exit-status
+# refresh the public release if re-running (avoids asset clashes):
+gh release delete desktop-dev --yes --cleanup-tag
+# then dispatch again; publish the draft:
+gh release edit desktop-dev --draft=false --prerelease
+```
+
+Rust toolchain is installed via rustup; source it in each shell:
+`. "$HOME/.cargo/env"`. Crypto tests: `(cd packages/core-rs && cargo test)` and
+`node --test packages/core/crypto.test.mjs`.
+
+---
+
+## 8. Running things for the owner (they're often away)
+
+The owner leaves the laptop on and wants you to test/build for them. The Claude
+CLI runs inside **Terminal.app**, so macOS TCC permissions go to **Terminal**:
+- **Accessibility → Terminal** (drive windows via `osascript`/System Events) and
+  **→ Yap** (so Yap can type at the cursor).
+- **Screen Recording → Terminal** for `screencapture` (needs a Terminal relaunch
+  to take effect — which would kill the session, so it applies next session).
+- **Automation → Terminal** → allow System Events / Yap.
+
+If you have these, you can launch the app, bring it to front / full-screen,
+`screencapture` it, and `SendUserFile` the screenshot to the owner's phone, then
+minimize. Without Screen Recording, `screencapture` fails with "could not create
+image from display" — then just report in text. The macOS app is at
+`/Applications/Yap.app`.
+
+---
+
+## 9. Status / history log (newest first)
+
+- 2026-06-17: Built the Tauri desktop app, made it web-identical (Create/Join +
+  QR, Chat/Devices, toggles, right-click Copy/Resend), switched paste to
+  clipboard+⌘V for speed, added Linux/Wayland typing (wtype/ydotool), set up the
+  cross-platform release CI, published the `desktop-dev` release, installed the
+  mac app to `/Applications`. Rust crypto mirror added + vectors verified.
+- 2026-06-16: Shipped Task A (E2E encryption) to the live web app + relay; web
+  polish (bubbles, layout, auto-copy). Relay verified blind.
+
+When a whole area is finished and durably documented in `docs/`/`prompts/`, you
+may trim this file — but keep it as the single place a cold session gets oriented.
