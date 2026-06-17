@@ -12,7 +12,13 @@ on:
     tags: ["v*"]
     # Temporary: build on this dev branch so the owner can download a test build
     # without triggering CI by hand. Remove before merging to master.
+    # Only when desktop code (or this workflow) changes — server/web-only pushes
+    # don't need a rebuild.
     branches: ["claude/ubuntu-app-issues-2dr7ek"]
+    paths:
+      - "apps/desktop/**"
+      - "packages/core-rs/**"
+      - ".github/workflows/desktop-release.yml"
   workflow_dispatch: {}
 
 jobs:
