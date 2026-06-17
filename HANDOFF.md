@@ -183,6 +183,10 @@ android-build.yml` assembles a debug APK (`ripple-debug-apk`) — **green**.
   `RippleConnectionService` (foreground, `dataSync`) keeps it alive when only the
   keyboard is up.
 - **Container app:** `RippleViewModel` + Compose Connect/Chat (warm-clay M3).
+- **Pairing QR:** `util/QrCodes` (ZXing, offline) generates the same `/?room=CODE`
+  QR as web/desktop — shown in the app's Chat top bar and the keyboard panel, so
+  another device's camera joins by scanning. (Generation only; camera *scanning*
+  to pair is still to do.)
 - **The keyboard:** `ime/RippleImeService` (InputMethodService) — a working
   compact key grid **plus the Ripple panel**: received text → chips that
   `commitText` **at the cursor** on tap; typed text → **send** to paired devices.
@@ -299,7 +303,8 @@ a richer layout (emoji/glide/long-press). Revisit when layout richness matters.
 **Remaining (priority):** (a) richer key layout (symbols/emoji, or vendor
 FlorisBoard); (b) keyboard **setup wizard** + **Settings** (consent mode
 auto/ask/off, theme, default code); (c) Compose **QR scan** + on-device
-**dictation**; (d) **history encrypted at rest**; (e) **signed-APK release**
+**dictation** (QR *generation* is done — only camera scanning remains); (d)
+**history encrypted at rest**; (e) **signed-APK release**
 workflow (keystore as a base64 GitHub secret); (f) TV D-pad polish + replace the
 placeholder icon with the canonical bubble. **First real test:** sideload the
 APK, enable the keyboard, pair, type both ways.
@@ -372,6 +377,10 @@ APK, enable the keyboard, pair, type both ways.
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-17 (latest+): **Pairing QR in the Android app + keyboard.** `util/QrCodes`
+  (ZXing, offline) encodes the same `/?room=CODE` link as web/desktop; shown via a
+  QR action in the Chat top bar and a "QR" pill in the keyboard panel. Generation
+  only — camera scanning to pair is the follow-up. CI-green; merged to `master`.
 - 2026-06-17 (latest): **Built the Ripple keyboard (Android IME).** Added
   `ime/RippleImeService` (working key grid + Ripple panel: received text inserts
   at the cursor, typed text sends to paired devices), `RippleRepository` (one

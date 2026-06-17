@@ -27,6 +27,8 @@ alongside a full container app.
   Ripple key. (Native key grid for now — a FlorisBoard-grade layout can replace
   it later without touching the panel/plumbing.)
 - `RippleViewModel` + Compose UI (`ui/`) — Connect + Chat screens, warm-clay M3.
+- **Pairing QR** (`util/QrCodes`, ZXing/offline) — a scannable `/?room=CODE` QR
+  (same as web/desktop) in the app's Chat top bar and the keyboard panel.
 - Shared crypto: reuses `packages/core-kt` **by source** (`sourceSets` srcDir),
   so `RippleCrypto` can't drift from the JS/Rust mirrors or the cross-language
   vectors. `minSdk 26` is required by its `java.util.Base64` / PBKDF2 usage.
@@ -40,7 +42,8 @@ Settings → System → Languages & input → enable **Ripple Keyboard** and pic
 ### Still to build
 - **Richer key layout** (symbols/emoji/long-press, or vendor FlorisBoard).
 - A **keyboard setup wizard** + **Settings** (consent mode auto/ask/off, theme).
-- Compose **QR scan** to pair, on-device **dictation** → send.
+- **QR camera scanning** to pair (CameraX/MLKit — needs device test), on-device
+  **dictation** → send. (QR *generation* is done; only scanning remains.)
 - **History encrypted at rest** (EncryptedSharedPreferences).
 - TV D-pad polish; replace placeholder icon with the canonical bubble.
 
