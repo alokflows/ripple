@@ -10,6 +10,9 @@ name: desktop-release
 on:
   push:
     tags: ["v*"]
+    # Temporary: build on this dev branch so the owner can download a test build
+    # without triggering CI by hand. Remove before merging to master.
+    branches: ["claude/ubuntu-app-issues-2dr7ek"]
   workflow_dispatch: {}
 
 jobs:
