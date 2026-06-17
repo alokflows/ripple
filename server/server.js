@@ -542,8 +542,11 @@ wss.on('connection', (ws, req) => {
       sess.updated = m.t;
       wakeWaiters(sess);
       const peers = (rooms.get(code)?.size || 1) - 1; // other connected devices
+      // Echo the optional client id so the sender can pair this ack to the exact
+      // message it sent (the web app uses it; older/desktop clients omit it).
+      const cid = typeof msg.cid === 'string' ? msg.cid.slice(0, 32) : undefined;
       broadcast(code, { type: 'text', id: m.id, text: m.text, t: m.t }, { exclude: ws });
-      send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers });
+      send(ws, { type: 'ack', id: m.id, t: m.t, delivered: peers, cid });
       return;
     }
 

@@ -778,7 +778,9 @@
       .addEventListener('change', () => { if (theme === 'system') applyTheme('system'); });
 
     let ws = null, reconnectTimer = null, backoff = 500;
-    const outbox = []; // texts awaiting server ack, FIFO
+    const outbox = new Map(); // cid -> plaintext, awaiting server ack
+    let clientSeq = 0;        // client-side id so each ack pairs to the right bubble
+    let decryptWarned = false; // surface "wrong code" once per session, not per message
     const role = 'phone'; // fixed; the relay only uses it for a cosmetic count
     let peers = 0; // other devices on this code
 
@@ -1070,7 +1072,11 @@
       if (!m || !m.text) return;
       if (!roomKey) { try { await deriveRoom(keyedCode || (els.room.value || '').trim().toUpperCase()); } catch {} }
       const plain = roomKey ? await YC.unseal(roomKey, m.text) : null;
-      if (plain == null) return;
+      if (plain == null) {
+        // Don't fail silently — almost always the two devices are on different codes.
+        if (!decryptWarned) { decryptWarned = true; toast("Couldn't read a message — make sure both devices use the same code.", 'bad'); }
+        return;
+      }
       addEntry({ id: 's' + m.id, dir, text: plain, t: m.t || Date.now() });
       if (doCopy && els.autoCopy.checked) autoCopyText(plain);
     }
@@ -1089,7 +1095,10 @@
       } else if (msg.type === 'text') {
         ingestSealed(msg, 'in', true);
       } else if (msg.type === 'ack') {
-        const text = outbox.shift();
+        // Pair the ack to its send by client id, so a dropped/rejected send can
+        // never shift every later bubble onto the wrong text.
+        const text = msg.cid != null ? outbox.get(msg.cid) : undefined;
+        if (msg.cid != null) outbox.delete(msg.cid);
         const n = msg.delivered | 0;
         // Store the real device count, so the bubble can show ticks + "N devices".
         if (msg.id != null && text != null) ingest({ id: msg.id, text, t: msg.t }, 'out', n);
@@ -1122,14 +1131,14 @@
         setStatus('offline', 'Code destroyed');
         toast('Code destroyed', 'bad');
       } else if (msg.type === 'error') {
-        if (msg.code === 'locked') {
-          // Refused by a locked room. closeCurrent() makes the close intentional,
-          // so set the standing UI here rather than relying on onclose.
+        if (msg.code === 'locked' || msg.code === 'full') {
+          // Refused (locked room, or room at capacity). closeCurrent() makes the
+          // close intentional so we don't reconnect-flap; let them try another code.
           lockedOut = true;
           closeCurrent();
           clearDevicesUI();
-          setPairState('start'); // let them try a different code
-          setStatus('offline', 'Room locked');
+          setPairState('start');
+          setStatus('offline', msg.code === 'full' ? 'Room full' : 'Room locked');
         }
         toast(msg.message || 'Error', 'bad');
       }
@@ -1235,18 +1244,21 @@
     async function doSend(text) {
       const value = (text ?? '').trim();
       if (!value) return false;
+      if (value.length > 100000) { toast('Message is too long to send', 'bad'); return false; }
       if (!ws || ws.readyState !== WebSocket.OPEN || !roomKey) {
         addEntry({ dir: 'out', text: value, delivered: 0 });
-        toast('Saved to History (offline)', 'bad');
+        toast('Saved here only — not sent (offline)', 'bad');
         return false;
       }
       // Seal with the room key — the relay only ever forwards this opaque blob.
-      // The plaintext stays local in `outbox` and is echoed when the ack lands.
+      // The plaintext stays local in `outbox` (keyed by a client id) and is echoed
+      // when the matching ack lands.
       let blob;
       try { blob = await YC.seal(roomKey, value); }
       catch { toast('Could not encrypt — not sent', 'bad'); return false; }
-      outbox.push(value);
-      ws.send(JSON.stringify({ type: 'text', text: blob }));
+      const cid = 'c' + (++clientSeq);
+      outbox.set(cid, value);
+      ws.send(JSON.stringify({ type: 'text', text: blob, cid }));
       return true;
     }
 
