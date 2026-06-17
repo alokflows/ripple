@@ -1,19 +1,16 @@
 package com.ripple.app
 
 import android.app.Application
-import android.content.Context
 import androidx.lifecycle.AndroidViewModel
+import androidx.lifecycle.viewModelScope
 import com.ripple.app.net.ChatMessage
 import com.ripple.app.net.ConnState
 import com.ripple.app.net.Member
-import com.ripple.app.net.RippleClient
-import com.ripple.app.net.RippleEvent
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
-import kotlinx.coroutines.flow.update
-import java.security.SecureRandom
-import java.util.Base64
+import kotlinx.coroutines.flow.combine
+import kotlinx.coroutines.flow.stateIn
 
 /** Snapshot the Compose tree renders. Immutable so recomposition is cheap + correct. */
 data class UiState(
@@ -29,85 +26,42 @@ data class UiState(
 
 enum class Screen { Connect, Chat }
 
+/**
+ * Thin adapter over [RippleRepository] (which owns the one shared socket). The
+ * ViewModel only adds the app's local navigation state (Connect vs Chat); all
+ * connection state is the repository's, so the keyboard sees the same thing.
+ */
 class RippleViewModel(app: Application) : AndroidViewModel(app) {
 
-    private val did: String = stableDid(app)
+    init { RippleRepository.init(app) }
 
-    private val _ui = MutableStateFlow(UiState())
-    val ui: StateFlow<UiState> = _ui.asStateFlow()
+    private val screen = MutableStateFlow(if (RippleRepository.isConnected) Screen.Chat else Screen.Connect)
 
-    private var client: RippleClient? = null
+    val ui: StateFlow<UiState> = combine(screen, RippleRepository.state) { scr, s ->
+        UiState(
+            screen = scr,
+            code = s.code,
+            state = s.state,
+            messages = s.messages,
+            members = s.members,
+            open = s.open,
+            notice = s.notice,
+            terminal = s.terminal,
+        )
+    }.stateIn(viewModelScope, SharingStarted.Eagerly, UiState())
 
     fun connect(code: String) {
-        val normalized = code.trim()
-        if (normalized.isEmpty()) return
-        client?.disconnect()
-        val c = RippleClient(did = did, onEvent = ::onEvent)
-        client = c
-        _ui.update { it.copy(screen = Screen.Chat, code = normalized, messages = emptyList(), terminal = null, notice = null) }
-        c.connect(normalized)
+        if (code.isBlank()) return
+        screen.value = Screen.Chat
+        RippleRepository.connect(code)
     }
 
-    fun send(text: String) {
-        val pending = client?.send(text) ?: return
-        _ui.update { it.copy(messages = it.messages + pending) }
-    }
+    fun send(text: String) { RippleRepository.send(text) }
 
     fun leave() {
-        client?.disconnect()
-        client = null
-        _ui.update { UiState() }   // back to a clean Connect screen
+        screen.value = Screen.Connect
+        RippleRepository.leave()
     }
 
-    fun dismissNotice() = _ui.update { it.copy(notice = null) }
-
-    override fun onCleared() {
-        client?.disconnect()
-        super.onCleared()
-    }
-
-    private fun onEvent(event: RippleEvent) {
-        when (event) {
-            is RippleEvent.Status -> _ui.update { it.copy(state = event.state) }
-
-            is RippleEvent.Incoming -> _ui.update { it.copy(messages = it.messages + event.message) }
-
-            is RippleEvent.History -> _ui.update { state ->
-                // Keep any optimistic/pending bubbles we already painted, drop the rest.
-                val mineKept = state.messages.filter { it.mine }
-                state.copy(messages = (event.messages + mineKept).sortedBy { it.t })
-            }
-
-            is RippleEvent.Acked -> _ui.update { state ->
-                val updated = state.messages.map {
-                    if (it.pending && it.cid == event.cid) it.copy(id = event.id, t = event.t, pending = false) else it
-                }
-                state.copy(messages = updated)
-            }
-
-            is RippleEvent.Presence -> _ui.update {
-                it.copy(members = event.members, open = event.open)
-            }
-
-            is RippleEvent.Notice -> _ui.update { it.copy(notice = event.text) }
-
-            RippleEvent.Cleared -> _ui.update { it.copy(messages = it.messages.filter { m -> m.pending }) }
-
-            is RippleEvent.Terminal -> _ui.update {
-                it.copy(state = ConnState.Closed, terminal = event.reason)
-            }
-        }
-    }
-
-    companion object {
-        /** A per-install device id (host model + locked rooms key on it). Persisted. */
-        private fun stableDid(ctx: Context): String {
-            val prefs = ctx.getSharedPreferences("ripple", Context.MODE_PRIVATE)
-            prefs.getString("did", null)?.let { return it }
-            val bytes = ByteArray(12).also { SecureRandom().nextBytes(it) }
-            val did = Base64.getUrlEncoder().withoutPadding().encodeToString(bytes)
-            prefs.edit().putString("did", did).apply()
-            return did
-        }
-    }
+    fun dismissNotice() = RippleRepository.dismissNotice()
 }
