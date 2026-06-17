@@ -170,16 +170,25 @@ The latest run is the **Ripple** build (new icon, Wayland portal, fast close).
 ✅ The temporary dev-branch auto-build trigger has been **removed** (2026-06-17);
 installers now come from `v*` tags or `workflow_dispatch` only.
 
-### Android container app (CI-green) ✅ scaffold
-`apps/android/` is now a buildable Gradle/AGP-8.7/Kotlin-2.1/Compose project — a
-full **encrypted peer** (Connect + Chat, warm-clay M3), **no IME yet**. One
-OkHttp WebSocket (`net/RippleClient`) speaks the §4 protocol (seal/unseal,
-room-hash routing, optimistic non-blocking send, id-correlated acks, backoff
-reconnect, terminal kicked/full/locked). Reuses `packages/core-kt` `RippleCrypto`
-**by source** (no drift). `minSdk 26` (the crypto needs `java.util.Base64` +
-PBKDF2, both API-26). `.github/workflows/android-build.yml` assembles a debug APK
-(`ripple-debug-apk` artifact) — **green** on the scaffold commit. Not yet run on
-a real device. Next: the FlorisBoard IME fork (see §10).
+### Android app + keyboard (CI-green) ✅ builds; ⚠ not device-tested
+`apps/android/` is a Gradle/AGP-8.7/Kotlin-2.1/Compose project, `minSdk 26` (the
+crypto needs `java.util.Base64` + PBKDF2, both API-26). `.github/workflows/
+android-build.yml` assembles a debug APK (`ripple-debug-apk`) — **green**.
+- **Networking/crypto:** `net/RippleClient` = one OkHttp WS speaking the §4
+  protocol (seal/unseal, room-hash routing, optimistic non-blocking send,
+  id-correlated acks, backoff reconnect, terminal kicked/full/locked). Reuses
+  `packages/core-kt` `RippleCrypto` **by source** (no drift from JS/Rust).
+- **Shared socket:** `RippleRepository` (process-wide singleton) owns the one
+  client so the app *and* the keyboard share a single WebSocket + history;
+  `RippleConnectionService` (foreground, `dataSync`) keeps it alive when only the
+  keyboard is up.
+- **Container app:** `RippleViewModel` + Compose Connect/Chat (warm-clay M3).
+- **The keyboard:** `ime/RippleImeService` (InputMethodService) — a working
+  compact key grid **plus the Ripple panel**: received text → chips that
+  `commitText` **at the cursor** on tap; typed text → **send** to paired devices.
+  Native key grid for now (FlorisBoard-grade layout can swap in later without
+  touching the panel/plumbing). ⚠ Compiles in CI only — **typing/commit-at-cursor
+  and the FGS notification are unverified until run on a device/emulator.**
 
 ### Cross-language crypto ✅
 JS (7/7) + Rust (8/8) vectors pass; salt/host preserved through the rebrand.
@@ -278,15 +287,22 @@ the complete experience plus keyboard settings. Same signed APK runs on phones
 and **Android TV** (leanback). FlorisBoard is the base (don't reinvent a keyboard).
 
 ### Progress (2026-06-17)
-✅ **Slice 1 — container app, CI-green** (see §5 "Android container app"). The
-shared **networking + crypto + UI** layer is built and compiles via CI: a full
-encrypted peer (Connect + Chat). This is the foundation the IME shares.
-**Remaining (in priority order):** (a) the **FlorisBoard IME fork** + Ripple
-panel + commit-at-cursor; (b) the **foreground Service** owning the one socket
-for IME+app (today `RippleClient` is ViewModel-owned — lift it into the Service
-when the IME lands); (c) QR scan / dictation / Settings / setup wizard; (d) the
-signed-APK release workflow; (e) TV D-pad polish + replace placeholder icon with
-the canonical bubble.
+✅ **Slice 1 — container app** and ✅ **Slice 2 — the keyboard (IME) + shared
+socket**, both CI-green (see §5 "Android app + keyboard"). The app and the IME
+share one socket (`RippleRepository` + `RippleConnectionService`); the keyboard
+inserts received text at the cursor and sends typed text.
+⚠ **Design divergence to know:** the IME currently uses a **native compact key
+grid**, *not* a FlorisBoard fork. Rationale: vendoring all of FlorisBoard is a
+large, deliberate effort and the Ripple panel + networking are identical either
+way — so we shipped a working keyboard now and kept Floris as a later swap-in for
+a richer layout (emoji/glide/long-press). Revisit when layout richness matters.
+**Remaining (priority):** (a) richer key layout (symbols/emoji, or vendor
+FlorisBoard); (b) keyboard **setup wizard** + **Settings** (consent mode
+auto/ask/off, theme, default code); (c) Compose **QR scan** + on-device
+**dictation**; (d) **history encrypted at rest**; (e) **signed-APK release**
+workflow (keystore as a base64 GitHub secret); (f) TV D-pad polish + replace the
+placeholder icon with the canonical bubble. **First real test:** sideload the
+APK, enable the keyboard, pair, type both ways.
 
 ### Architecture (recommended)
 - **Fork FlorisBoard** (Apache-2.0, Kotlin/Gradle/AndroidX) into `apps/android/`.
@@ -356,6 +372,14 @@ the canonical bubble.
 
 ## 11. Status / history log (newest first)
 
+- 2026-06-17 (latest): **Built the Ripple keyboard (Android IME).** Added
+  `ime/RippleImeService` (working key grid + Ripple panel: received text inserts
+  at the cursor, typed text sends to paired devices), `RippleRepository` (one
+  shared socket for app+IME) and `RippleConnectionService` (foreground, keeps the
+  socket alive). Refactored the ViewModel onto the repository; manifest IME +
+  FGS + notification wiring. CI-green debug APK; merged to `master`. Chose a
+  native key grid over a FlorisBoard fork for now (see §10 divergence note).
+  ⚠ Not yet run on a device — typing/commit-at-cursor unverified.
 - 2026-06-17 (late): Session run from the **owner's Mac** (can reach the relay).
   (1) **Verified the live deploy** — prod `sw.js` = `ripple-v11` = `master`,
   `/healthz` ok (closes the long-standing "can't confirm live" gap). (2) Removed
