@@ -22,14 +22,14 @@ const RELAY: &str = "wss://yap-mkk4.onrender.com/ws";
 // ---- shared settings -------------------------------------------------------
 #[derive(Clone, Copy, Serialize)]
 struct Settings {
-    /// true = type at the cursor; false = copy to clipboard.
-    paste: bool,
-    /// true = receive but do nothing (no typing, no copy).
-    paused: bool,
+    /// Type each received message at the cursor (clipboard + paste shortcut).
+    type_at_cursor: bool,
+    /// Also leave each received message on the clipboard.
+    auto_copy: bool,
 }
 impl Default for Settings {
     fn default() -> Self {
-        Settings { paste: true, paused: false }
+        Settings { type_at_cursor: true, auto_copy: false }
     }
 }
 
@@ -75,6 +75,29 @@ struct MsgPayload {
 }
 fn emit_message(app: &AppHandle, dir: &str, text: String, delivered: u32) {
     let _ = app.emit("yap://message", MsgPayload { dir: dir.into(), text, delivered });
+}
+
+#[derive(Clone, Serialize)]
+struct Device {
+    name: String,
+    os: String,
+    is_host: bool,
+    is_me: bool,
+}
+fn emit_devices(app: &AppHandle, v: &serde_json::Value, my_id: &Option<String>) {
+    let mut devices = Vec::new();
+    if let Some(members) = v.get("members").and_then(|m| m.as_array()) {
+        for m in members {
+            let id = m.get("id").and_then(|x| x.as_str()).unwrap_or("");
+            devices.push(Device {
+                name: m.get("name").and_then(|x| x.as_str()).unwrap_or("Device").to_string(),
+                os: m.get("os").and_then(|x| x.as_str()).unwrap_or("Device").to_string(),
+                is_host: m.get("isHost").and_then(|x| x.as_bool()).unwrap_or(false),
+                is_me: my_id.as_deref() == Some(id),
+            });
+        }
+    }
+    let _ = app.emit("yap://devices", devices);
 }
 
 // A stable per-device id, persisted under the app's config dir.
@@ -160,13 +183,14 @@ async fn run_connection(
 ) -> ConnEnd {
     let (mut write, mut read) = ws.split();
     let mut outbox: VecDeque<String> = VecDeque::new();
+    let mut my_id: Option<String> = None;
 
     loop {
         tokio::select! {
             incoming = read.next() => {
                 match incoming {
                     Some(Ok(Message::Text(txt))) => {
-                        handle_incoming(app, key, &txt, inject_tx, settings, &mut outbox);
+                        handle_incoming(app, key, &txt, inject_tx, settings, &mut outbox, &mut my_id);
                     }
                     Some(Ok(Message::Ping(p))) => { let _ = write.send(Message::Pong(p)).await; }
                     Some(Ok(Message::Close(_))) | Some(Err(_)) | None => return ConnEnd::Dropped,
@@ -196,6 +220,7 @@ async fn run_connection(
     }
 }
 
+#[allow(clippy::too_many_arguments)]
 fn handle_incoming(
     app: &AppHandle,
     key: &[u8; 32],
@@ -203,13 +228,18 @@ fn handle_incoming(
     inject_tx: &StdSender<InjectCmd>,
     settings: &Arc<Mutex<Settings>>,
     outbox: &mut VecDeque<String>,
+    my_id: &mut Option<String>,
 ) {
     let Ok(v) = serde_json::from_str::<serde_json::Value>(txt) else { return };
     match v.get("type").and_then(|t| t.as_str()).unwrap_or("") {
         "joined" | "presence" => {
+            if let Some(id) = v.get("id").and_then(|x| x.as_str()) {
+                *my_id = Some(id.to_string());
+            }
             let members = v.get("members").and_then(|m| m.as_array()).map(|a| a.len()).unwrap_or(0);
             let others = members.saturating_sub(1);
             emit_status(app, "connected", others, None);
+            emit_devices(app, &v, my_id);
         }
         "history" => {
             // Show past messages, but never auto-type a backlog at the cursor.
@@ -228,9 +258,12 @@ fn handle_incoming(
                 if let Some(plain) = yap_core::unseal(key, blob) {
                     emit_message(app, "in", plain.clone(), 0);
                     let s = *settings.lock().unwrap();
-                    if !s.paused {
-                        let cmd = if s.paste { InjectCmd::Paste(plain) } else { InjectCmd::Copy(plain) };
-                        let _ = inject_tx.send(cmd);
+                    // Type at the cursor and/or copy. When both are on, the paste
+                    // leaves the text on the clipboard, so no separate copy needed.
+                    if s.type_at_cursor {
+                        let _ = inject_tx.send(InjectCmd::Paste { text: plain, keep_clipboard: s.auto_copy });
+                    } else if s.auto_copy {
+                        let _ = inject_tx.send(InjectCmd::Copy(plain));
                     }
                 }
             }
@@ -306,13 +339,18 @@ fn send_text(text: String, state: State<AppState>) -> Result<(), String> {
 }
 
 #[tauri::command]
-fn set_paste(on: bool, state: State<AppState>) {
-    state.settings.lock().unwrap().paste = on;
+fn set_type_at_cursor(on: bool, state: State<AppState>) {
+    state.settings.lock().unwrap().type_at_cursor = on;
 }
 
 #[tauri::command]
-fn set_paused(on: bool, state: State<AppState>) {
-    state.settings.lock().unwrap().paused = on;
+fn set_auto_copy(on: bool, state: State<AppState>) {
+    state.settings.lock().unwrap().auto_copy = on;
+}
+
+#[tauri::command]
+fn copy_to_clipboard(text: String, state: State<AppState>) {
+    let _ = state.inject_tx.send(InjectCmd::Copy(text));
 }
 
 #[tauri::command]
@@ -343,7 +381,8 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            connect, disconnect, send_text, set_paste, set_paused, get_settings, undo
+            connect, disconnect, send_text, set_type_at_cursor, set_auto_copy,
+            copy_to_clipboard, get_settings, undo
         ])
         .run(tauri::generate_context!())
         .expect("error while running Yap Desktop");
